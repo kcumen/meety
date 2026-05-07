@@ -188,6 +188,21 @@ async def list_meetings(
     )
 
 
+# ── GET /meetings/{id} (numeric DB id) ───────────────────────────────────────
+
+@router.get("/{meeting_id:int}", response_model=MeetingResponse)
+async def get_meeting_by_id(
+    meeting_id: int,
+    db: Session = Depends(get_db),
+):
+    """Get a single meeting by its numeric database ID (used by web UI polling)."""
+    from app.db import Meeting
+    m = db.get(Meeting, meeting_id)
+    if not m:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+    return _meeting_to_response(m)
+
+
 # ── GET /meetings/{platform}/{native_meeting_id} ─────────────────────────────
 
 @router.get("/{platform}/{native_meeting_id}", response_model=MeetingResponse)
@@ -247,6 +262,56 @@ async def get_meeting_status(
     )
 
 
+
+# ── GET /meetings/{meeting_id}/summary (numeric ID) ────────────────────────────
+# NOTE: using str path param + int() conversion to avoid Starlette routing bug
+# where /{meeting_id:int}/summary gets shadowed by /{platform}/{native}/summary
+
+@router.get("/{meeting_id}/summary", response_model=MeetingSummaryResponse)
+async def get_meeting_summary_by_id(
+    meeting_id: str,
+    db: Session = Depends(get_db),
+):
+    """Return the AI-generated summary by numeric meeting ID (used by web UI)."""
+    try:
+        numeric_id = int(meeting_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+    from app.db import Meeting
+    m = db.get(Meeting, numeric_id)
+    if not m:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+
+    if m.summary is None:
+        return MeetingSummaryResponse(
+            meeting_id=m.id,
+            platform=m.platform,
+            native_meeting_id=m.native_meeting_id,
+            summary=None,
+            summary_text=None,
+        )
+
+    try:
+        data = json.loads(m.summary)
+        summary = MeetingSummary.model_validate(data)
+    except Exception:
+        return MeetingSummaryResponse(
+            meeting_id=m.id,
+            platform=m.platform,
+            native_meeting_id=m.native_meeting_id,
+            summary=None,
+            summary_text=m.summary,
+        )
+
+    return MeetingSummaryResponse(
+        meeting_id=m.id,
+        platform=m.platform,
+        native_meeting_id=m.native_meeting_id,
+        summary=summary,
+        summary_text=None,
+    )
+
+
 # ── GET /meetings/{platform}/{native_meeting_id}/summary ─────────────────────
 
 @router.get("/{platform}/{native_meeting_id}/summary", response_model=MeetingSummaryResponse)
@@ -255,6 +320,11 @@ async def get_meeting_summary(
     native_meeting_id: str,
     db: Session = Depends(get_db),
 ):
+    """Return the AI-generated summary by numeric meeting ID (used by web UI)."""
+    # FastAPI/Starlette routes /meetings/{id}/summary here due to segment-count
+    # priority — redirect to the typed endpoint when platform is a number.
+    if platform.isdigit():
+        return await get_meeting_summary_by_id(int(platform), db)
     """Return the AI-generated summary, if available."""
     m = get_meeting_by_platform_id(db, platform, native_meeting_id)
     if not m:
@@ -289,7 +359,6 @@ async def get_meeting_summary(
         summary=summary,
         summary_text=None,
     )
-
 
 # ── GET /meetings/{platform}/{native_meeting_id}/transcript ──────────────────
 
