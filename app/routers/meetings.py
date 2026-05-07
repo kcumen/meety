@@ -4,6 +4,7 @@ Handles: join, list, status, summary, transcript, delete.
 """
 
 import json
+import logging
 from contextlib import contextmanager
 from datetime import datetime, timezone
 
@@ -11,6 +12,8 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, R
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+
+logger = logging.getLogger("meety")
 
 
 @contextmanager
@@ -445,3 +448,46 @@ async def delete_meeting(
     db.commit()
 
     return Response(status_code=204)
+
+
+# ── POST /meetings/{platform}/{native_meeting_id}/stop ───────────────────────
+
+@router.post("/{platform}/{native_meeting_id}/stop")
+async def stop_meeting_bot(
+    platform: str,
+    native_meeting_id: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Tells vexa to remove the bot from the meeting.
+    The local status will be updated via webhook later.
+    """
+    m = get_meeting_by_platform_id(db, platform, native_meeting_id)
+    if not m:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+
+    try:
+        from app.services.vexa_client import VexaClient
+        vexa = VexaClient()
+        await vexa.remove_bot(platform, native_meeting_id)
+        return {"ok": True, "message": "Stop request sent to Vexa"}
+    except Exception as e:
+        logger.error(f"Failed to stop bot: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to stop bot: {str(e)}")
+
+
+# ── GET /meetings/events (SSE) ────────────────────────────────────────────────
+
+@router.get("/events")
+async def meeting_events():
+    """
+    Server-Sent Events endpoint for real-time UI updates.
+    The UI connects here and waits for notifications from the webhook handler.
+    """
+    from app.services.notifier import notifier
+    from fastapi.responses import StreamingResponse
+
+    return StreamingResponse(
+        notifier.subscribe(),
+        media_type="text/event-stream"
+    )

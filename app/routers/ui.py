@@ -283,17 +283,58 @@ _HTML = """
       flex-shrink: 0;
     }
 
-    .badge-requested  { background: #eff6ff; color: #1d4ed8; }
-    .badge-joining    { background: #fef3c7; color: #92400e; }
-    .badge-active     { background: #dbeafe; color: #1e40af; }
-    .badge-completed  { background: #dcfce7; color: #15803d; }
     .badge-failed     { background: #fee2e2; color: #b91c1c; }
+
+    .btn-stop {
+      background: #fee2e2;
+      color: #b91c1c;
+      padding: 6px 10px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      border-radius: var(--radius);
+      border: 1px solid #fecaca;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s;
+      z-index: 10;
+    }
+
+    .btn-stop:hover {
+      background: #fecaca;
+      border-color: #f87171;
+    }
 
     .empty-state {
       text-align: center;
       padding: 40px 20px;
       color: var(--muted);
       font-size: 0.9rem;
+    }
+
+    /* ── Transcript lines ─────────────────────────────────────── */
+    .transcript-line {
+      padding: 10px 0;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    .transcript-line:last-child { border-bottom: none; }
+
+    .transcript-line .speaker {
+      font-weight: 700;
+      color: var(--accent);
+      margin-right: 6px;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .transcript-line .text {
+      color: var(--text);
     }
 
     /* ── Summary card ─────────────────────────────────────────── */
@@ -501,18 +542,68 @@ _HTML = """
 </div>
 
 <script>
+// ── Utilities ──────────────────────────────────────────────────
+
+function md(text) {
+  if (!text) return '';
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/\n/g, '<br>');
+}
+
 /* ── State ────────────────────────────────────────────────── */
-let pollingInterval = null;
 let currentMeetingId = null;
 
 /* ── Init ─────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
   loadMeetings();
+  setupSSE();
+  
   // Enter key on input triggers join
   document.getElementById('url-input').addEventListener('keydown', e => {
     if (e.key === 'Enter') joinMeeting();
   });
 });
+
+/* ── SSE ──────────────────────────────────────────────────── */
+function setupSSE() {
+  const source = new EventSource('/meetings/events');
+  
+  source.onmessage = (event) => {
+    try {
+      const { event: type, data } = JSON.parse(event.data);
+      console.log('Real-time event:', type, data);
+      
+      // Map event types to internal statuses
+      let status = data.status;
+      if (type === 'meeting.started') status = 'active';
+      if (type === 'meeting.completed') status = 'completed';
+      if (type === 'bot.failed') status = 'failed';
+
+      // Update meeting list and banner if it's the current meeting
+      loadMeetings();
+      
+      if (currentMeetingId && (
+          data.native_meeting_id === currentMeetingId || 
+          data.meeting_id === currentMeetingId || 
+          data.id === parseInt(currentMeetingId)
+      )) {
+        if (status) updateBannerStatus(status);
+        if (status === 'completed') {
+            // Show summary or refresh
+            loadMeetings();
+        }
+      }
+    } catch (e) {
+      console.error('SSE error:', e);
+    }
+  };
+  
+  source.onerror = () => {
+    console.warn('SSE disconnected. Reconnecting...');
+  };
+}
 
 /* ── Join ─────────────────────────────────────────────────── */
 async function joinMeeting() {
@@ -549,38 +640,15 @@ async function joinMeeting() {
 
     input.value = '';
     btn.disabled = false;
-    currentMeetingId = data.id;
+    currentMeetingId = data.native_meeting_id; // Store to filter SSE
 
     showStatusBanner(data.status, `Reunión creada (ID ${data.id}) — esperando bot…`);
-    startPolling(data.id);
     loadMeetings();
 
   } catch (e) {
     errorEl.textContent = 'No se pudo conectar con el servidor.';
     btn.disabled = false;
   }
-}
-
-/* ── Polling ──────────────────────────────────────────────── */
-function startPolling(meetingId) {
-  stopPolling();
-  pollingInterval = setInterval(async () => {
-    try {
-      const res = await fetch(`/meetings/${encodeURIComponent(meetingId)}`);
-      if (!res.ok) { stopPolling(); return; }
-      const m = await res.json();
-      updateBannerStatus(m.status);
-      if (m.status === 'completed' || m.status === 'failed') {
-        stopPolling();
-        loadMeetings();
-        if (m.status === 'completed') showSummaryInline(m);
-      }
-    } catch (_) { stopPolling(); }
-  }, 5000);
-}
-
-function stopPolling() {
-  if (pollingInterval) { clearInterval(pollingInterval); pollingInterval = null; }
 }
 
 /* ── Status banner ────────────────────────────────────────── */
@@ -609,8 +677,25 @@ function updateBannerStatus(status) {
   document.getElementById('status-spinner').style.display = showSpinner ? 'block' : 'none';
 }
 
+async function stopMeeting(platform, nativeId) {
+  if (!confirm('¿Seguro que querés terminar la sesión del bot?')) return;
+  
+  try {
+    const res = await fetch(`/meetings/${platform}/${nativeId}/stop`, { method: 'POST' });
+    if (res.ok) {
+      console.log('Stop request sent');
+      loadMeetings();
+    } else {
+      alert('Error al intentar detener el bot.');
+    }
+  } catch (e) {
+    console.error('Error stopping meeting:', e);
+  }
+}
+
 function hideStatusBanner() {
-  document.getElementById('status-banner').className = 'status-banner';
+  const banner = document.getElementById('status-banner');
+  if (banner) banner.className = 'status-banner';
 }
 
 /* ── Meetings list ────────────────────────────────────────── */
@@ -634,7 +719,14 @@ async function loadMeetings() {
           <div class="url">${escHtml(m.meeting_url)}</div>
           <div class="meta">${formatDate(m.created_at)} · ID ${m.id}</div>
         </div>
-        <span class="status-badge badge-${m.status}">${statusLabel(m.status)}</span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          ${['requested','joining','active'].includes(m.status) ? `
+            <button class="btn-stop" onclick="event.stopPropagation(); stopMeeting('${m.platform}', '${m.native_meeting_id}')" title="Terminar sesión">
+              ⏹ Parar
+            </button>
+          ` : ''}
+          <span class="status-badge badge-${m.status}">${statusLabel(m.status)}</span>
+        </div>
       </div>
     `).join('');
   } catch (_) {
@@ -686,10 +778,31 @@ async function openMeeting(id) {
     </div>
 
     ${summary ? `
-      ${summary.overview ? `<div class="panel-section"><h4>Resumen</h4><p>${escHtml(summary.overview)}</p></div>` : ''}
-      ${summary.topics && summary.topics.length ? `<div class="panel-section"><h4>Temas</h4><ul>${summary.topics.map(t=>`<li>${escHtml(t)}</li>`).join('')}</ul></div>` : ''}
-      ${summary.tasks && summary.tasks.length ? `<div class="panel-section"><h4>Tareas</h4><ul>${summary.tasks.map(t=>`<li><strong>${escHtml(t.assignee||'—')}</strong>: ${escHtml(t.content)}</li>`).join('')}</ul></div>` : ''}
-      ${summary.commitments && summary.commitments.length ? `<div class="panel-section"><h4>Compromisos</h4><ul>${summary.commitments.map(c=>`<li><strong>${escHtml(c.person||'—')}</strong>: ${escHtml(c.content)}</li>`).join('')}</ul></div>` : ''}
+      <div class="panel-section">
+        <h4>Resumen Ejecutivo</h4>
+        <div class="md-content">${md(summary.executive_summary)}</div>
+      </div>
+      
+      ${summary.key_points && summary.key_points.length ? `
+        <div class="panel-section">
+          <h4>Puntos Clave</h4>
+          <ul>${summary.key_points.map(p => `<li>${md(p)}</li>`).join('')}</ul>
+        </div>
+      ` : ''}
+      
+      ${summary.tasks && summary.tasks.length ? `
+        <div class="panel-section">
+          <h4>Tareas</h4>
+          <ul>${summary.tasks.map(t => `<li><strong>${escHtml(t.owner || '—')}</strong>: ${md(t.title)}</li>`).join('')}</ul>
+        </div>
+      ` : ''}
+      
+      ${summary.commitments && summary.commitments.length ? `
+        <div class="panel-section">
+          <h4>Compromisos</h4>
+          <ul>${summary.commitments.map(c => `<li><strong>${escHtml(c.owner || '—')}</strong>: ${md(c.commitment)}</li>`).join('')}</ul>
+        </div>
+      ` : ''}
     ` : `
       <div class="panel-section"><p style="color:var(--muted);font-size:0.88rem">${['requested','joining','active'].includes(m.status) ? 'La reunión aún está en curso. El resumen aparece cuando termina.' : 'No hay resumen disponible.'}</p></div>
     `}

@@ -188,6 +188,16 @@ class TranscriptSegmentResponse(BaseModel):
     absolute_start_time: str | None = None
     absolute_end_time: str | None = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def _map_times(cls, values: dict) -> dict:
+        """Map Vexa's 'start' and 'end' to our 'start_time' and 'end_time'."""
+        if "start" in values and "start_time" not in values:
+            values["start_time"] = values["start"]
+        if "end" in values and "end_time" not in values:
+            values["end_time"] = values["end"]
+        return values
+
 
 class TranscriptResponse(BaseModel):
     """GET /meetings/{platform}/{native_meeting_id}/transcript"""
@@ -206,14 +216,14 @@ class TranscriptResponse(BaseModel):
 # Webhook payloads
 # ─────────────────────────────────────────────────────────────
 
-class VexaStatusChangeEvent(BaseModel):
-    """Payload from vexa.ai for meeting.status_change webhook."""
+class VexaMeetingEvent(BaseModel):
+    """Payload from vexa.ai for meeting related webhooks."""
 
-    event: str = "meeting.status_change"
+    event: str = Field(description="meeting.status_change | meeting.started | meeting.completed | bot.failed")
     meeting_id: int = Field(description="Meeting ID from vexa")
     platform: str = Field(description="google_meet | teams | zoom")
     native_meeting_id: str = Field(description="Platform-specific meeting ID")
-    status: str = Field(description="requested | joining | active | completed | failed")
+    status: str | None = Field(default=None, description="requested | joining | active | completed | failed")
     start_time: str | None = Field(default=None)
     end_time: str | None = Field(default=None)
     data: dict[str, Any] = Field(default_factory=dict)
@@ -221,11 +231,17 @@ class VexaStatusChangeEvent(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _extract_meeting(cls, values: dict) -> dict:
-        """vexa.ai sends meeting data nested under 'meeting' key — flatten it."""
-        if "meeting" in values and isinstance(values["meeting"], dict):
-            m = values["meeting"]
+        """vexa.ai sends meeting data nested under 'meeting' or 'data.meeting' key — flatten it."""
+        event_name = values.get("event") or values.get("event_type")
+        
+        # Look for meeting data in various possible locations
+        m = values.get("meeting")
+        if not m and isinstance(values.get("data"), dict):
+            m = values["data"].get("meeting")
+            
+        if m and isinstance(m, dict):
             return {
-                "event": values.get("event"),
+                "event": event_name,
                 "meeting_id": m.get("id"),
                 "platform": m.get("platform"),
                 "native_meeting_id": m.get("native_meeting_id"),
@@ -234,7 +250,7 @@ class VexaStatusChangeEvent(BaseModel):
                 "end_time": m.get("end_time"),
                 "data": m.get("data", {}),
             }
-        return values
+        return {**values, "event": event_name}
 
 
 class VexaRecordingCompletedEvent(BaseModel):
