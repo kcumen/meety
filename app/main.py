@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.db import init_db
 from app.routers import health, meetings, webhook
+from app.routers.ui import router as ui_router
 
 
 @asynccontextmanager
@@ -40,3 +41,4 @@ app.add_middleware(
 app.include_router(health.router, tags=["health"])
 app.include_router(meetings.router, prefix="/meetings", tags=["meetings"])
 app.include_router(webhook.router, prefix="/webhook", tags=["webhook"])
+app.include_router(ui_router, tags=["ui"])
