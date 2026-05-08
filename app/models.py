@@ -45,7 +45,7 @@ class JoinMeetingRequest(BaseModel):
         "Defaults to auto-detect.",
     )
     bot_name: str | None = Field(
-        default="Meety",
+        default="KcuBot | kcumen.co",
         max_length=128,
         description="Display name of the bot in the meeting.",
     )

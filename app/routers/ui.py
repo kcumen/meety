@@ -146,6 +146,27 @@ _HTML = """
       min-height: 18px;
     }
 
+    .bot-name-row {
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    .bot-name-row input {
+      flex: 1;
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg);
+      font-size: 0.82rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .bot-name-row input:focus { border-color: var(--accent); }
+
     /* ── Options row ──────────────────────────────────────────── */
     .options {
       margin-top: 12px;
@@ -529,6 +550,12 @@ _HTML = """
       />
       <button id="join-btn" onclick="joinMeeting()">Unirse</button>
     </div>
+
+    <div class="bot-name-row">
+      <label for="bot-name-input">Nombre del bot:</label>
+      <input type="text" id="bot-name-input" value="KcuBot | kcumen.co" placeholder="Ej: KcuBot | kcumen.co" />
+    </div>
+
     <div id="form-error" class="form-error"></div>
 
     <!-- Options -->
@@ -727,6 +754,7 @@ async function joinMeeting() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         url,
+        bot_name: document.getElementById('bot-name-input').value.trim() || 'KcuBot | kcumen.co',
         transcribe_enabled: document.getElementById('opt-transcribe').checked,
         recording_enabled:   document.getElementById('opt-record').checked,
         notify_telegram:     document.getElementById('opt-telegram').checked,
