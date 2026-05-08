@@ -429,6 +429,14 @@ async def get_meeting_transcript(
             # Use the provided 'db' session directly
             store_transcript(db, m.id, segments_dicts, raw)
             db.commit()
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                logger.info(f"Transcript not found on Vexa for {native_meeting_id} (404).")
+                segments_dicts = []
+                raw = "{}"
+            else:
+                logger.error(f"Vexa transcript lazy-fetch HTTP error: {e}")
+                raise HTTPException(status_code=502, detail=f"Vexa transcript fetch failed: HTTP {e.response.status_code}")
         except Exception as e:
             logger.error(f"Vexa transcript lazy-fetch failed: {e}")
             raise HTTPException(status_code=502, detail=f"Vexa transcript fetch failed: {e}")
