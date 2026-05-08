@@ -22,6 +22,7 @@ _HTML = """
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Meety — Bot de reuniones</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
   <style>
     /* ── Reset & base ─────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -588,17 +589,24 @@ function saveApiKey() {
   localStorage.setItem('meety_api_key', val);
   document.getElementById('auth-overlay').classList.remove('visible');
   loadMeetings();
+  setupSSE(); // Restart SSE with the new key
 }
 
 async function authFetch(url, options = {}) {
   const headers = options.headers || {};
   headers['X-Meety-API-Key'] = getApiKey();
   
-  // Use the native window.fetch to avoid recursion
+  console.log(`[Auth] Fetching ${url}...`);
   const res = await window.fetch(url, { ...options, headers });
   
   if (res.status === 401) {
+    console.error('[Auth] Error 401: Llave inválida o faltante.');
     document.getElementById('auth-overlay').classList.add('visible');
+    document.getElementById('auth-input').focus();
+    // Backup alert in case CSS fails to show overlay
+    if (!document.querySelector('#auth-overlay.visible')) {
+       alert('Acceso restringido. Por favor ingresá la llave.');
+    }
   }
   
   return res;
@@ -611,7 +619,7 @@ function md(text) {
   return text
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/\n/g, '<br>');
+    .replace(/\\n/g, '<br>');
 }
 
 /* ── State ────────────────────────────────────────────────── */
@@ -629,21 +637,26 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /* ── SSE ──────────────────────────────────────────────────── */
+let sseSource = null;
+
 function setupSSE() {
-  const source = new EventSource('/meetings/events?key=' + getApiKey());
+  const key = getApiKey();
+  if (!key) return; // Don't even try without a key
   
-  source.onmessage = (event) => {
+  if (sseSource) sseSource.close();
+  
+  sseSource = new EventSource('/meetings/events?key=' + key);
+  
+  sseSource.onmessage = (event) => {
     try {
       const { event: type, data } = JSON.parse(event.data);
       console.log('Real-time event:', type, data);
       
-      // Map event types to internal statuses
       let status = data.status;
       if (type === 'meeting.started') status = 'active';
       if (type === 'meeting.completed') status = 'completed';
       if (type === 'bot.failed') status = 'failed';
 
-      // Update meeting list and banner if it's the current meeting
       loadMeetings();
       
       if (currentMeetingId && (
@@ -652,18 +665,19 @@ function setupSSE() {
           data.id === parseInt(currentMeetingId)
       )) {
         if (status) updateBannerStatus(status);
-        if (status === 'completed') {
-            // Show summary or refresh
-            loadMeetings();
-        }
+        if (status === 'completed') loadMeetings();
       }
     } catch (e) {
       console.error('SSE error:', e);
     }
   };
   
-  source.onerror = () => {
-    console.warn('SSE disconnected. Reconnecting...');
+  sseSource.onerror = (e) => {
+    console.warn('SSE connection lost. It will auto-retry or restart on login.');
+    // If it's a 401, close it to stop the spam
+    if (sseSource.readyState === EventSource.CLOSED) {
+       // already closed
+    }
   };
 }
 
