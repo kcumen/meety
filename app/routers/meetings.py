@@ -8,6 +8,7 @@ import logging
 from contextlib import contextmanager
 from datetime import datetime, timezone
 
+import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
@@ -277,6 +278,7 @@ async def get_meeting_status(
 @router.get("/{meeting_id}/summary", response_model=MeetingSummaryResponse)
 async def get_meeting_summary_by_id(
     meeting_id: str,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
     """Return the AI-generated summary by numeric meeting ID (used by web UI)."""
@@ -290,12 +292,11 @@ async def get_meeting_summary_by_id(
         raise HTTPException(status_code=404, detail="Meeting not found")
 
     if m.summary is None:
+        # Trigger self-healing in background to avoid Localtunnel timeouts
+        background_tasks.add_task(_self_heal_summary, numeric_id)
         return MeetingSummaryResponse(
-            meeting_id=m.id,
-            platform=m.platform,
-            native_meeting_id=m.native_meeting_id,
-            summary=None,
-            summary_text=None,
+            meeting_id=m.id, platform=m.platform, native_meeting_id=m.native_meeting_id,
+            summary=None, summary_text="⏳ Generando resumen inteligente... (esto puede tardar unos segundos)"
         )
 
     try:
@@ -303,20 +304,47 @@ async def get_meeting_summary_by_id(
         summary = MeetingSummary.model_validate(data)
     except Exception:
         return MeetingSummaryResponse(
-            meeting_id=m.id,
-            platform=m.platform,
-            native_meeting_id=m.native_meeting_id,
-            summary=None,
-            summary_text=m.summary,
+            meeting_id=m.id, platform=m.platform, native_meeting_id=m.native_meeting_id,
+            summary=None, summary_text=m.summary
         )
 
     return MeetingSummaryResponse(
-        meeting_id=m.id,
-        platform=m.platform,
-        native_meeting_id=m.native_meeting_id,
-        summary=summary,
-        summary_text=None,
+        meeting_id=m.id, platform=m.platform, native_meeting_id=m.native_meeting_id,
+        summary=summary, summary_text=None
     )
+
+
+async def _self_heal_summary(meeting_id: int):
+    """Background task to fetch transcript and generate summary if missing."""
+    from app.db import get_session_maker
+    from app.services.summarizer import generate_summary
+    from app.db import Meeting, store_transcript, update_meeting_summary
+    from app.models import TranscriptSegmentResponse
+
+    maker = get_session_maker()
+    with maker() as db:
+        m = db.get(Meeting, meeting_id)
+        if not m or m.summary:
+            return
+
+        try:
+            segments_dicts = []
+            if m.transcript is None:
+                vexa = VexaClient()
+                tx = await vexa.get_transcript(m.platform, m.native_meeting_id)
+                segments_dicts = [s.model_dump() for s in tx.segments]
+                store_transcript(db, m.id, segments_dicts, json.dumps(tx.model_dump(mode="json")))
+                db.commit()
+            else:
+                segments_dicts = json.loads(m.transcript.segments or "[]")
+
+            if segments_dicts:
+                segs = [TranscriptSegmentResponse.model_validate(s) for s in segments_dicts]
+                summary_obj = await generate_summary(segs, meeting_id=m.id, language=m.language)
+                update_meeting_summary(db, m.id, summary_obj.model_dump())
+                db.commit()
+        except Exception as e:
+            logger.error(f"Background self-healing failed for meeting {meeting_id}: {e}")
 
 
 # ── GET /meetings/{platform}/{native_meeting_id}/summary ─────────────────────
@@ -325,25 +353,25 @@ async def get_meeting_summary_by_id(
 async def get_meeting_summary(
     platform: str,
     native_meeting_id: str,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
-    """Return the AI-generated summary by numeric meeting ID (used by web UI)."""
+    """Return the AI-generated summary, if available."""
     # FastAPI/Starlette routes /meetings/{id}/summary here due to segment-count
     # priority — redirect to the typed endpoint when platform is a number.
     if platform.isdigit():
-        return await get_meeting_summary_by_id(int(platform), db)
-    """Return the AI-generated summary, if available."""
+        return await get_meeting_summary_by_id(platform, background_tasks, db)
+
     m = get_meeting_by_platform_id(db, platform, native_meeting_id)
     if not m:
         raise HTTPException(status_code=404, detail="Meeting not found")
 
     if m.summary is None:
+        # Trigger self-healing in background
+        background_tasks.add_task(_self_heal_summary, m.id)
         return MeetingSummaryResponse(
-            meeting_id=m.id,
-            platform=platform,
-            native_meeting_id=native_meeting_id,
-            summary=None,
-            summary_text=None,
+            meeting_id=m.id, platform=m.platform, native_meeting_id=m.native_meeting_id,
+            summary=None, summary_text="⏳ Generando resumen inteligente... (esto puede tardar unos segundos)"
         )
 
     try:
@@ -389,11 +417,14 @@ async def get_meeting_transcript(
         try:
             tx = await vexa.get_transcript(platform, native_meeting_id)
             segments_dicts = [s.model_dump() for s in tx.segments]
-            raw = json.dumps(tx.model_dump())
-            with _db_ctx() as inner_db:
-                stored = store_transcript(inner_db, m.id, segments_dicts, raw)
-                inner_db.commit()
+            raw = json.dumps(tx.model_dump(mode="json"))
+            
+            from app.db import store_transcript
+            # Use the provided 'db' session directly
+            store_transcript(db, m.id, segments_dicts, raw)
+            db.commit()
         except Exception as e:
+            logger.error(f"Vexa transcript lazy-fetch failed: {e}")
             raise HTTPException(status_code=502, detail=f"Vexa transcript fetch failed: {e}")
     else:
         segments_dicts = json.loads(m.transcript.segments or "[]")
@@ -535,9 +566,14 @@ async def share_meeting_transcript(
         vexa = _vexa()
         share_data = await vexa.share_transcript(platform, native_meeting_id)
         return share_data.model_dump()
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            raise HTTPException(status_code=404, detail="Vexa no encontró la transcripción para esta reunión. Asegúrate de que el bot haya participado y la sesión haya finalizado.")
+        logger.error(f"Vexa API error sharing transcript: {e}")
+        raise HTTPException(status_code=502, detail="Error de comunicación con Vexa.ai")
     except Exception as e:
         logger.error(f"Failed to share transcript: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to generate share link: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error interno al generar el enlace: {str(e)}")
 
 
 # ── GET /meetings/events (SSE) ────────────────────────────────────────────────

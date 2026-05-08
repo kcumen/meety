@@ -392,7 +392,13 @@ _HTML = """
       flex-shrink: 0;
     }
 
-    .badge-failed     { background: #fee2e2; color: #b91c1c; }
+    .badge-requested          { background: #fef3c7; color: #92400e; }
+    .badge-joining            { background: #e0f2fe; color: #0369a1; }
+    .badge-awaiting_admission { background: #ffedd5; color: #9a3412; }
+    .badge-active             { background: #dcfce7; color: #166534; }
+    .badge-stopping           { background: #f3f4f6; color: #374151; }
+    .badge-completed          { background: #f0fdf4; color: #15803d; }
+    .badge-failed             { background: #fee2e2; color: #b91c1c; }
 
     .btn-stop {
       background: #fee2e2;
@@ -604,8 +610,13 @@ _HTML = """
       font-weight: 700;
       background: #333;
     }
-    .status-completed { color: #4ade80; background: rgba(74, 222, 128, 0.1); }
-    .status-active { color: #38bdf8; background: rgba(56, 189, 248, 0.1); }
+    .status-requested          { color: #fbbf24; background: rgba(251, 191, 36, 0.1); }
+    .status-joining            { color: #38bdf8; background: rgba(56, 189, 248, 0.1); }
+    .status-awaiting_admission { color: #fb923c; background: rgba(251, 146, 60, 0.1); }
+    .status-active             { color: #4ade80; background: rgba(74, 222, 128, 0.1); }
+    .status-stopping           { color: #9ca3af; background: rgba(156, 163, 175, 0.1); }
+    .status-completed          { color: #4ade80; background: rgba(74, 222, 128, 0.1); }
+    .status-failed             { color: #f87171; background: rgba(248, 113, 113, 0.1); }
 
     .btn-danger-big {
       width: 100%;
@@ -619,6 +630,31 @@ _HTML = """
       transition: all 0.2s;
     }
     .btn-danger-big:hover { background: #4a2525; }
+
+    /* ── Auth Overlay ────────────────────────────────────────── */
+    #auth-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(255,255,255,0.95);
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    #auth-overlay.visible { display: flex; }
+    .auth-card {
+      background: #fff;
+      padding: 32px;
+      border-radius: 12px;
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 360px;
+      text-align: center;
+      color: #1a1918;
+    }
+    .auth-card h2 { margin-bottom: 20px; font-size: 1.2rem; }
+    .auth-card input { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; text-align: center; font-size: 1.1rem; letter-spacing: 0.2em; }
 
     /* ── Overlay ──────────────────────────────────────────────── */
     #overlay {
@@ -770,6 +806,16 @@ _HTML = """
   <div id="summary-card" class="summary-card"></div>
 
 </main>
+
+<!-- Auth Overlay -->
+<div id="auth-overlay">
+  <div class="auth-card">
+    <h2>Acceso Restringido</h2>
+    <p style="font-size: 0.9rem; color: var(--muted); margin-bottom: 20px;">Ingresá la llave de acceso para continuar.</p>
+    <input type="password" id="auth-input" placeholder="••••••••" />
+    <button onclick="saveApiKey()" style="width: 100%">Entrar</button>
+  </div>
+</div>
 
 <!-- Detail Panel (New Professional Overlay) -->
 <div id="detail-panel">
@@ -923,6 +969,14 @@ function md(text) {
 
 /* ── State ────────────────────────────────────────────────── */
 let currentMeetingId = null;
+let loadTimeout = null;
+
+function debouncedLoadMeetings() {
+  if (loadTimeout) clearTimeout(loadTimeout);
+  loadTimeout = setTimeout(() => {
+    loadMeetings();
+  }, 300); // Wait 300ms for more events before fetching
+}
 
 /* ── Init ─────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
@@ -956,7 +1010,7 @@ function setupSSE() {
       if (type === 'meeting.completed') status = 'completed';
       if (type === 'bot.failed') status = 'failed';
 
-      loadMeetings();
+      debouncedLoadMeetings();
       
       if (currentMeetingId && (
           data.native_meeting_id === currentMeetingId || 
@@ -964,7 +1018,6 @@ function setupSSE() {
           data.id === parseInt(currentMeetingId)
       )) {
         if (status) updateBannerStatus(status);
-        if (status === 'completed') loadMeetings();
       }
     } catch (e) {
       console.error('SSE error:', e);
@@ -972,11 +1025,9 @@ function setupSSE() {
   };
   
   sseSource.onerror = (e) => {
-    console.warn('SSE connection lost. It will auto-retry or restart on login.');
-    // If it's a 401, close it to stop the spam
-    if (sseSource.readyState === EventSource.CLOSED) {
-       // already closed
-    }
+    console.warn('SSE connection lost. Reconnecting in 3s...');
+    sseSource.close();
+    setTimeout(setupSSE, 3000); // Re-try in 3 seconds
   };
 }
 
@@ -1055,12 +1106,14 @@ function updateBannerStatus(status) {
   const messages = {
     requested: 'Esperando respuesta de vexa.ai…',
     joining:   'Bot uniéndose a la reunión…',
-    active:    'Reunión en progreso — grabando…',
+    awaiting_admission: 'Esperando a ser admitido en la reunión…',
+    active:    'Reunión en progreso — capturando…',
+    stopping:  'Terminando sesión y procesando…',
     completed: 'Reunión finalizada ✓',
     failed:    'Error en la reunión ✗',
   };
   document.getElementById('status-text').textContent = messages[status] || status;
-  const showSpinner = ['requested', 'joining', 'active'].includes(status);
+  const showSpinner = ['requested', 'joining', 'awaiting_admission', 'active', 'stopping'].includes(status);
   document.getElementById('status-spinner').style.display = showSpinner ? 'block' : 'none';
 }
 
@@ -1131,7 +1184,15 @@ function platformLabel(p) {
 }
 
 function statusLabel(s) {
-  return { requested:'Esperando', joining:'Uniéndose', active:'Activa', completed:'Finalizada', failed:'Error' }[s] || s;
+  return { 
+    requested: 'Solicitado', 
+    joining: 'Uniéndose', 
+    awaiting_admission: 'Esperando admisión', 
+    active: 'Activa', 
+    stopping: 'Deteniendo...',
+    completed: 'Finalizada', 
+    failed: 'Error' 
+  }[s] || s;
 }
 
 function formatDate(iso) {
@@ -1149,15 +1210,23 @@ async function openMeetingDetails(platform, nativeId) {
   const title = document.getElementById('panel-title');
   const badge = document.getElementById('panel-status-badge');
   
+  currentMeetingId = nativeId;
   title.innerText = nativeId;
   panel.classList.add('open');
   content.innerHTML = '<div style="color:#666; text-align:center; padding-top:100px;">Cargando...</div>';
 
   try {
     const key = getApiKey();
-    const res = await fetch(`/meetings/${platform}/${nativeId}?key=${encodeURIComponent(key)}`);
-    if (!res.ok) throw new Error('Failed to load');
-    const data = await res.json();
+    const [resMeeting, resSummary, resTranscript] = await Promise.all([
+      fetch(`/meetings/${platform}/${nativeId}?key=${encodeURIComponent(key)}`),
+      fetch(`/meetings/${platform}/${nativeId}/summary?key=${encodeURIComponent(key)}`),
+      fetch(`/meetings/${platform}/${nativeId}/transcript?key=${encodeURIComponent(key)}`)
+    ]);
+
+    if (!resMeeting.ok) throw new Error('Failed to load meeting');
+    const data = await resMeeting.json();
+    const summaryData = resSummary.ok ? await resSummary.json() : { summary: null };
+    const transcriptData = resTranscript.ok ? await resTranscript.json() : { segments: [] };
     
     // Header & Sidebar basic info
     badge.innerText = statusLabel(data.status);
@@ -1186,16 +1255,31 @@ async function openMeetingDetails(platform, nativeId) {
     let html = '';
     
     // 1. AI Summary Section
-    if (data.summary) {
-      let s = data.summary;
-      try { if (typeof s === 'string') s = JSON.parse(s); } catch(e){}
+    const s = summaryData.summary || summaryData.summary_text;
+    if (s) {
+      const isStructured = summaryData.summary !== null;
+      const isProcessing = typeof s === 'string' && s.includes('⏳');
       
       html += `
         <div class="summary-section">
           <h3 style="margin:0 0 12px 0; font-size:1.1rem;">🧠 Resumen de la IA</h3>
-          <p style="margin-bottom:20px; font-size:1.1rem; line-height:1.6; color:#fff;">${s.executive_summary || (typeof s === 'string' ? s : 'Sin resumen ejecutivo.')}</p>
+          <p style="margin-bottom:20px; font-size:1.1rem; line-height:1.6; color:#fff;">${isStructured ? s.executive_summary : md(s)}</p>
           
-          ${s.key_points && s.key_points.length ? `
+          ${isProcessing ? `
+            <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:10px; border:1px dashed #444; text-align:center;">
+               <div class="spinner" style="margin:0 auto 10px auto; width:20px; height:20px; border-width:2px;"></div>
+               <p style="font-size:0.8rem; color:#888;">Estamos procesando la información. Esta vista se actualizará sola...</p>
+            </div>
+            <script>
+              setTimeout(() => { 
+                if (typeof currentMeetingId !== 'undefined' && currentMeetingId === '${nativeId}') {
+                  openMeetingDetails('${platform}', '${nativeId}');
+                }
+              }, 5000);
+            <\/script>
+          ` : ''}
+          
+          ${isStructured && s.key_points && s.key_points.length ? `
             <div style="margin-top:24px;">
               <h4 style="font-size:0.75rem; color:#666; text-transform:uppercase; margin-bottom:8px;">Puntos Clave</h4>
               <ul style="list-style:disc; margin-left:20px; color:#bbb;">
@@ -1204,7 +1288,7 @@ async function openMeetingDetails(platform, nativeId) {
             </div>
           ` : ''}
           
-          ${s.tasks && s.tasks.length ? `
+          ${isStructured && s.tasks && s.tasks.length ? `
             <div style="margin-top:24px;">
               <h4 style="font-size:0.75rem; color:#666; text-transform:uppercase; margin-bottom:8px;">Tareas y Compromisos</h4>
               <ul style="list-style:none;">
@@ -1218,12 +1302,17 @@ async function openMeetingDetails(platform, nativeId) {
           ` : ''}
         </div>
       `;
+    } else {
+      html += `
+        <div class="summary-section" style="text-align:center; color:#666; padding:40px;">
+          <p>El resumen se está generando o no hay datos suficientes.</p>
+        </div>
+      `;
     }
 
     // 2. Transcript Section & Participants
-    if (data.transcript && data.transcript.segments) {
-      let segments = data.transcript.segments;
-      try { if (typeof segments === 'string') segments = JSON.parse(segments); } catch(e){}
+    const segments = transcriptData.segments || [];
+    if (segments.length > 0) {
       
       document.getElementById('stat-segments').innerText = segments.length;
       let totalWords = 0;
@@ -1275,13 +1364,13 @@ async function openMeetingDetails(platform, nativeId) {
         const res = await authFetch(`/meetings/${platform}/${nativeId}/share`, { method: 'POST' });
         const shareData = await res.json();
         
-        if (shareData.url) {
+        if (res.ok && shareData.url) {
           window.open(shareData.url, '_blank');
         } else {
-          alert('No se pudo generar el enlace de exportación.');
+          alert(shareData.detail || 'No se pudo generar el enlace de exportación.');
         }
       } catch (err) {
-        alert('Error al exportar.');
+        alert('Error al conectar con el servidor.');
       } finally {
         const btn = document.getElementById('btn-export-transcript');
         btn.innerText = 'Exportar';

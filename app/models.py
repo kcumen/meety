@@ -195,23 +195,15 @@ class MeetingSummaryResponse(BaseModel):
 class TranscriptSegmentResponse(BaseModel):
     """A single transcript segment."""
 
-    start_time: float
-    end_time: float
+    start_time: float = Field(alias="start")
+    end_time: float = Field(alias="end")
     text: str
     speaker: str | None = None
     language: str | None = None
     absolute_start_time: str | None = None
     absolute_end_time: str | None = None
 
-    @model_validator(mode="before")
-    @classmethod
-    def _map_times(cls, values: dict) -> dict:
-        """Map Vexa's 'start' and 'end' to our 'start_time' and 'end_time'."""
-        if "start" in values and "start_time" not in values:
-            values["start_time"] = values["start"]
-        if "end" in values and "end_time" not in values:
-            values["end_time"] = values["end"]
-        return values
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class TranscriptResponse(BaseModel):
