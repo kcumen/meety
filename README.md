@@ -3,7 +3,7 @@
 [![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Proprietary](https://img.shields.io/badge/License-Proprietary-red.svg)](LICENSE)
 
 **Meety** es un asistente de reuniones inteligente que automatiza la captura, transcripción y resumen de tus videollamadas en Google Meet, Microsoft Teams y Zoom. Diseñado para la eficiencia, Meety te permite concentrarte en la conversación mientras él se encarga de la documentación.
 
@@ -80,4 +80,4 @@ Explora los detalles técnicos y guías de configuración:
 Si quieres mejorar Meety, ¡siéntete libre de abrir un Pull Request o reportar un Issue!
 
 ---
-Developed with ❤️ by **Kcumen Team**
+Copyright © 2026 **Kcumen Team**. All Rights Reserved.
