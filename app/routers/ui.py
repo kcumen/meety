@@ -493,90 +493,132 @@ _HTML = """
 
     .summary-card li strong { font-weight: 600; }
 
-    /* ── Detail panel (slide-in) ─────────────────────────────── */
+    /* ── Detail Overlay (Maestro) ───────────────────────────── */
     #detail-panel {
       position: fixed;
-      top: 0; right: 0;
-      width: min(480px, 100vw);
-      height: 100dvh;
-      background: var(--surface);
-      border-left: 1px solid var(--border);
-      box-shadow: -4px 0 24px rgba(0,0,0,0.08);
-      overflow-y: auto;
-      transform: translateX(100%);
-      transition: transform 0.25s ease;
-      z-index: 100;
-      display: flex;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #0f0f0f;
+      z-index: 1000;
+      display: none;
       flex-direction: column;
+      overflow: hidden;
+      color: #fff;
     }
+    #detail-panel.open { display: flex; }
 
-    #detail-panel.open { transform: translateX(0); }
-
-    .panel-header {
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--border);
+    .detail-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid #333;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      position: sticky;
-      top: 0;
-      background: var(--surface);
+      gap: 16px;
+      background: #161616;
     }
-
-    .panel-header h2 { font-size: 1rem; }
-
-    .close-btn {
-      background: none;
-      border: none;
-      font-size: 1.4rem;
-      cursor: pointer;
-      color: var(--muted);
-      padding: 4px 8px;
-      border-radius: 4px;
-      line-height: 1;
+    .back-btn {
+      background: none; border: none; color: #fff;
+      cursor: pointer; font-size: 1.4rem; padding: 4px 12px;
+      border-radius: 8px; transition: background 0.2s;
     }
+    .back-btn:hover { background: #333; }
 
-    .close-btn:hover { background: var(--bg); color: var(--text); }
-
-    .panel-body { padding: 20px; flex: 1; }
-
-    .panel-url {
-      font-size: 0.8rem;
-      color: var(--muted);
-      word-break: break-all;
-      margin-bottom: 16px;
+    .detail-body {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      overflow: hidden;
     }
-
-    .panel-section { margin-top: 20px; }
-    .panel-section:first-child { margin-top: 0; }
-
-    .panel-section h4 {
-      font-size: 0.72rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--muted);
-      margin-bottom: 8px;
+    .detail-content {
+      padding: 40px;
+      overflow-y: auto;
+      border-right: 1px solid #333;
     }
-
-    .panel-section p {
-      font-size: 0.9rem;
-      line-height: 1.6;
-    }
-
-    .panel-section ul {
-      list-style: none;
+    .detail-sidebar {
+      padding: 24px;
+      overflow-y: auto;
+      background: #141414;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 20px;
     }
 
-    .panel-section li {
-      font-size: 0.88rem;
-      background: var(--bg);
-      padding: 8px 12px;
-      border-radius: 6px;
+    /* Transcript Style */
+    .transcript-line {
+      margin-bottom: 24px;
+      border-bottom: none;
     }
+    .speaker-label {
+      font-weight: 700;
+      color: var(--accent);
+      font-size: 0.9rem;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .speaker-time { font-weight: normal; color: #666; font-size: 0.75rem; }
+    .speaker-text { line-height: 1.6; color: #d0d0d0; font-size: 1.05rem; }
+
+    /* Summary Card */
+    .summary-section {
+      background: #1a1a1a;
+      border: 1px solid var(--accent);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 40px;
+      box-shadow: 0 4px 30px rgba(0,0,0,0.3);
+    }
+    .summary-section h3 { color: var(--accent); margin-bottom: 12px; }
+
+    /* Sidebar Cards */
+    .side-card {
+      background: #1e1e1e;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .side-card h4 {
+      font-size: 0.75rem;
+      color: #777;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .side-info-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .side-info-icon { font-size: 1.2rem; min-width: 24px; text-align: center; }
+    .side-info-text .label { font-size: 0.7rem; color: #666; }
+    .side-info-text .value { font-size: 0.9rem; font-weight: 500; }
+
+    /* Status Badge */
+    .status-badge-big {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      background: #333;
+    }
+    .status-completed { color: #4ade80; background: rgba(74, 222, 128, 0.1); }
+    .status-active { color: #38bdf8; background: rgba(56, 189, 248, 0.1); }
+
+    .btn-danger-big {
+      width: 100%;
+      padding: 14px;
+      background: #2a1515;
+      color: #f87171;
+      border: 1px solid #4a2525;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: all 0.2s;
+    }
+    .btn-danger-big:hover { background: #4a2525; }
 
     /* ── Overlay ──────────────────────────────────────────────── */
     #overlay {
@@ -729,24 +771,81 @@ _HTML = """
 
 </main>
 
-<!-- ── Detail panel ────────────────────────────────────── -->
-<div id="overlay" onclick="closePanel()"></div>
-
-<!-- Auth Overlay -->
-<div id="auth-overlay">
-  <div class="auth-card">
-    <h2>Acceso Restringido</h2>
-    <p style="font-size: 0.9rem; color: var(--muted); margin-bottom: 20px;">Ingresá la llave de acceso para continuar.</p>
-    <input type="password" id="auth-input" placeholder="••••••••" />
-    <button onclick="saveApiKey()" style="width: 100%">Entrar</button>
-  </div>
-</div>
+<!-- Detail Panel (New Professional Overlay) -->
 <div id="detail-panel">
-  <div class="panel-header">
-    <h2>Detalle</h2>
-    <button class="close-btn" onclick="closePanel()">×</button>
+  <div class="detail-header">
+    <button class="back-btn" onclick="closePanel()">←</button>
+    <h2 id="panel-title">mcz-ybpw-myb</h2>
+    <span id="panel-status-badge" class="status-badge-big">Status</span>
+    <div style="margin-left: auto; display: flex; gap: 12px;">
+      <button id="btn-export-transcript" class="btn" style="padding: 8px 16px; font-size: 0.8rem; background: #333;">Exportar</button>
+    </div>
   </div>
-  <div class="panel-body" id="panel-body"></div>
+  
+  <div class="detail-body">
+    <div class="detail-content" id="panel-content">
+      <!-- Summary and Transcript go here -->
+    </div>
+    
+    <div class="detail-sidebar">
+      <div class="side-card">
+        <h4>📋 Meeting Info</h4>
+        <div class="side-info-item">
+          <div class="side-info-icon">📹</div>
+          <div class="side-info-text">
+            <div class="label">Plataforma</div>
+            <div id="side-platform" class="value">-</div>
+          </div>
+        </div>
+        <div class="side-info-item">
+          <div class="side-info-icon">📅</div>
+          <div class="side-info-text">
+            <div class="label">Fecha</div>
+            <div id="side-date" class="value">-</div>
+          </div>
+        </div>
+        <div class="side-info-item">
+          <div class="side-info-icon">🌐</div>
+          <div class="side-info-text">
+            <div class="label">Idioma</div>
+            <div id="side-lang" class="value">-</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="side-card">
+        <h4>👥 Participantes</h4>
+        <div id="side-participants" style="display:flex; flex-direction:column; gap:8px;">
+          <div style="color:#666; font-size:0.85rem;">Cargando...</div>
+        </div>
+      </div>
+
+      <div class="side-card">
+        <h4>📊 Estadísticas</h4>
+        <div class="side-info-item">
+          <div class="side-info-text">
+            <div class="label">Intervenciones</div>
+            <div id="stat-segments" class="value">0</div>
+          </div>
+        </div>
+        <div class="side-info-item">
+          <div class="side-info-text">
+            <div class="label">Palabras aproximadas</div>
+            <div id="stat-words" class="value">0</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="side-card">
+        <h4>📝 Notas</h4>
+        <textarea id="side-notes-area" placeholder="Haz clic para añadir notas..." style="width:100%; background:none; border:none; color:#bbb; resize:none; font-size:0.9rem; min-height:100px; outline:none;"></textarea>
+      </div>
+
+      <div style="margin-top: auto;">
+        <button id="btn-delete-final" class="btn-danger-big">🗑️ Borrar Reunión</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -999,13 +1098,13 @@ async function loadMeetings() {
     }
 
     list.innerHTML = data.meetings.map(m => `
-      <div class="meeting-item" onclick="openMeeting('${m.id}')">
+      <div class="meeting-item" onclick="openMeetingDetails('${m.platform}', '${m.native_meeting_id}')">
         <div class="platform-icon ${m.platform === 'google_meet' ? 'google' : m.platform === 'teams' ? 'teams' : 'zoom'}">
           ${platformLabel(m.platform)}
         </div>
         <div class="info">
-          <div class="url">${escHtml(m.meeting_url)}</div>
-          <div class="meta">${formatDate(m.created_at)} · ID ${m.id}</div>
+          <div class="url">${escHtml(m.native_meeting_id)}</div>
+          <div class="meta">${formatDate(m.created_at)} · ${m.platform}</div>
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
           ${['requested','joining','active'].includes(m.status) ? `
@@ -1043,67 +1142,177 @@ function formatDate(iso) {
 }
 
 /* ── Detail panel ─────────────────────────────────────────── */
-async function openMeeting(id) {
-  const res = await authFetch(`/meetings/${encodeURIComponent(id)}`);
-  if (!res.ok) return;
-  const m = await res.json();
+/* ── Detail Panel Logic ──────────────────────────────────── */
+async function openMeetingDetails(platform, nativeId) {
+  const panel = document.getElementById('detail-panel');
+  const content = document.getElementById('panel-content');
+  const title = document.getElementById('panel-title');
+  const badge = document.getElementById('panel-status-badge');
+  
+  title.innerText = nativeId;
+  panel.classList.add('open');
+  content.innerHTML = '<div style="color:#666; text-align:center; padding-top:100px;">Cargando...</div>';
 
-  // Fetch summary if available
-  const sumRes = await authFetch(`/meetings/${encodeURIComponent(id)}/summary`);
-  let summary = null;
-  if (sumRes.ok) {
-    const sumData = await sumRes.json();
-    if (sumData.summary) summary = sumData.summary;
+  try {
+    const key = getApiKey();
+    const res = await fetch(`/meetings/${platform}/${nativeId}?key=${encodeURIComponent(key)}`);
+    if (!res.ok) throw new Error('Failed to load');
+    const data = await res.json();
+    
+    // Header & Sidebar basic info
+    badge.innerText = statusLabel(data.status);
+    badge.className = `status-badge-big status-${data.status.toLowerCase()}`;
+    
+    document.getElementById('side-platform').innerText = data.platform;
+    document.getElementById('side-date').innerText = formatDate(data.created_at);
+    document.getElementById('side-lang').innerText = data.language || 'Auto';
+    
+    // Notes logic
+    const notesArea = document.getElementById('side-notes-area');
+    notesArea.value = data.notes || '';
+    notesArea.onblur = async () => {
+      try {
+        await authFetch(`/meetings/${platform}/${nativeId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ notes: notesArea.value })
+        });
+        console.log('Notes saved');
+      } catch (e) {
+        console.error('Failed to save notes', e);
+      }
+    };
+    
+    let html = '';
+    
+    // 1. AI Summary Section
+    if (data.summary) {
+      let s = data.summary;
+      try { if (typeof s === 'string') s = JSON.parse(s); } catch(e){}
+      
+      html += `
+        <div class="summary-section">
+          <h3 style="margin:0 0 12px 0; font-size:1.1rem;">🧠 Resumen de la IA</h3>
+          <p style="margin-bottom:20px; font-size:1.1rem; line-height:1.6; color:#fff;">${s.executive_summary || (typeof s === 'string' ? s : 'Sin resumen ejecutivo.')}</p>
+          
+          ${s.key_points && s.key_points.length ? `
+            <div style="margin-top:24px;">
+              <h4 style="font-size:0.75rem; color:#666; text-transform:uppercase; margin-bottom:8px;">Puntos Clave</h4>
+              <ul style="list-style:disc; margin-left:20px; color:#bbb;">
+                ${s.key_points.map(p => `<li style="margin-bottom:6px;">${p}</li>`).join('')}
+              </ul>
+            </div>
+          ` : ''}
+          
+          ${s.tasks && s.tasks.length ? `
+            <div style="margin-top:24px;">
+              <h4 style="font-size:0.75rem; color:#666; text-transform:uppercase; margin-bottom:8px;">Tareas y Compromisos</h4>
+              <ul style="list-style:none;">
+                ${s.tasks.map(t => `
+                  <li style="background:#222; padding:12px; border-radius:10px; margin-bottom:8px; border-left:4px solid var(--accent);">
+                    <strong>${t.assignee || 'Pendiente'}:</strong> ${t.description}
+                  </li>
+                `).join('')}
+              </ul>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    // 2. Transcript Section & Participants
+    if (data.transcript && data.transcript.segments) {
+      let segments = data.transcript.segments;
+      try { if (typeof segments === 'string') segments = JSON.parse(segments); } catch(e){}
+      
+      document.getElementById('stat-segments').innerText = segments.length;
+      let totalWords = 0;
+      const participants = new Set();
+      
+      html += '<h3 style="margin:0 0 24px 0; font-size:0.85rem; color:#555; text-transform:uppercase; letter-spacing:1px;">Transcripción Completa</h3>';
+      
+      html += segments.map(seg => {
+        totalWords += (seg.text || "").split(' ').length;
+        if (seg.speaker) participants.add(seg.speaker);
+        return `
+          <div class="transcript-line">
+            <div class="speaker-label">
+              ${seg.speaker || 'Participante'} 
+              <span class="speaker-time">${formatSimpleTime(seg.start_time)}</span>
+            </div>
+            <div class="speaker-text">${escHtml(seg.text)}</div>
+          </div>
+        `;
+      }).join('');
+      
+      document.getElementById('stat-words').innerText = totalWords;
+
+      // Update Participants UI
+      const partList = document.getElementById('side-participants');
+      if (participants.size > 0) {
+        partList.innerHTML = Array.from(participants).map(p => `
+          <div style="display:flex; align-items:center; gap:8px; font-size:0.9rem;">
+            <div style="width:8px; height:8px; background:var(--accent); border-radius:50%;"></div>
+            ${p}
+          </div>
+        `).join('');
+      } else {
+        partList.innerHTML = '<div style="color:#666; font-size:0.85rem;">No detectados</div>';
+      }
+    } else {
+      html += '<div style="color:#666; text-align:center; padding:40px;">No hay transcripción disponible.</div>';
+    }
+    
+    content.innerHTML = html;
+    
+    // Action Buttons
+    document.getElementById('btn-export-transcript').onclick = async () => {
+      try {
+        const btn = document.getElementById('btn-export-transcript');
+        btn.innerText = 'Generando...';
+        btn.disabled = true;
+        
+        const res = await authFetch(`/meetings/${platform}/${nativeId}/share`, { method: 'POST' });
+        const shareData = await res.json();
+        
+        if (shareData.url) {
+          window.open(shareData.url, '_blank');
+        } else {
+          alert('No se pudo generar el enlace de exportación.');
+        }
+      } catch (err) {
+        alert('Error al exportar.');
+      } finally {
+        const btn = document.getElementById('btn-export-transcript');
+        btn.innerText = 'Exportar';
+        btn.disabled = false;
+      }
+    };
+
+    document.getElementById('btn-delete-final').onclick = async () => {
+      if (!confirm('¿Seguro que querés borrar esta sesión?')) return;
+      await authFetch(`/meetings/${platform}/${nativeId}`, { method: 'DELETE' });
+      closePanel();
+      loadMeetings();
+    };
+
+  } catch (err) {
+    content.innerHTML = `<div style="color:#f87171; text-align:center; padding:100px;">Error al cargar: ${err.message}</div>`;
   }
+}
 
-  const body = document.getElementById('panel-body');
-  body.innerHTML = `
-    <div class="panel-url">${escHtml(m.meeting_url)}</div>
-
-    <div class="panel-section">
-      <h4>Estado</h4>
-      <p><span class="status-badge badge-${m.status}">${statusLabel(m.status)}</span></p>
-    </div>
-
-    ${summary ? `
-      <div class="panel-section">
-        <h4>Resumen Ejecutivo</h4>
-        <div class="md-content">${md(summary.executive_summary)}</div>
-      </div>
-      
-      ${summary.key_points && summary.key_points.length ? `
-        <div class="panel-section">
-          <h4>Puntos Clave</h4>
-          <ul>${summary.key_points.map(p => `<li>${md(p)}</li>`).join('')}</ul>
-        </div>
-      ` : ''}
-      
-      ${summary.tasks && summary.tasks.length ? `
-        <div class="panel-section">
-          <h4>Tareas</h4>
-          <ul>${summary.tasks.map(t => `<li><strong>${escHtml(t.owner || '—')}</strong>: ${md(t.title)}</li>`).join('')}</ul>
-        </div>
-      ` : ''}
-      
-      ${summary.commitments && summary.commitments.length ? `
-        <div class="panel-section">
-          <h4>Compromisos</h4>
-          <ul>${summary.commitments.map(c => `<li><strong>${escHtml(c.owner || '—')}</strong>: ${md(c.commitment)}</li>`).join('')}</ul>
-        </div>
-      ` : ''}
-    ` : `
-      <div class="panel-section"><p style="color:var(--muted);font-size:0.88rem">${['requested','joining','active'].includes(m.status) ? 'La reunión aún está en curso. El resumen aparece cuando termina.' : 'No hay resumen disponible.'}</p></div>
-    `}
-  `;
-
-  document.getElementById('overlay').classList.add('visible');
-  document.getElementById('detail-panel').classList.add('open');
+function formatSimpleTime(s) {
+  if (!s) return '00:00';
+  const min = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${min}:${sec.toString().padStart(2, '0')}`;
 }
 
 function closePanel() {
-  document.getElementById('overlay').classList.remove('visible');
   document.getElementById('detail-panel').classList.remove('open');
 }
+
+function md(t) { return escHtml(t); } // Basic placeholder for markdown
 
 /* ── Inline summary (shown after own meeting completes) ─────── */
 function showSummaryInline(m) {

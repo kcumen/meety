@@ -257,6 +257,19 @@ class VexaClient:
             resp.raise_for_status()
             return DeleteBotResponse.model_validate(resp.json())
 
+    async def delete_meeting(self, platform: str, native_meeting_id: str) -> dict:
+        """
+        DELETE /meetings/{platform}/{native_meeting_id}
+        Anonymizes the meeting and deletes transcript/recording artifacts.
+        """
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            resp = await client.delete(
+                f"{self.base_url}/meetings/{platform}/{native_meeting_id}",
+                headers={"X-API-Key": self.api_key},
+            )
+            resp.raise_for_status()
+            return resp.json()
+
     # ── Transcripts ───────────────────────────────────────────
 
     async def get_transcript(
@@ -291,6 +304,26 @@ class VexaClient:
             return ShareTranscriptResponse.model_validate(resp.json())
 
     # ── Meetings ───────────────────────────────────────────────
+
+    async def patch_meeting(
+        self, platform: str, native_meeting_id: str, data: dict
+    ) -> MeetingRef:
+        """
+        PATCH /meetings/{platform}/{native_meeting_id}
+        Updates meeting metadata (e.g., notes, name).
+        """
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            resp = await client.patch(
+                f"{self.base_url}/meetings/{platform}/{native_meeting_id}",
+                json={"data": data},
+                headers={
+                    "X-API-Key": self.api_key,
+                    "Content-Type": "application/json",
+                },
+            )
+            resp.raise_for_status()
+            return MeetingRef.model_validate(resp.json())
+
 
     async def list_meetings(
         self, limit: int = 50, offset: int = 0

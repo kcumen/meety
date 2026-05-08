@@ -75,6 +75,11 @@ class JoinMeetingRequest(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
 
+class UpdateMeetingRequest(BaseModel):
+    """PATCH /meetings/{platform}/{native_meeting_id}"""
+    notes: str | None = None
+
+
 # ─────────────────────────────────────────────────────────────
 # Meeting — response
 # ─────────────────────────────────────────────────────────────
@@ -94,6 +99,7 @@ class MeetingResponse(BaseModel):
     end_time: datetime | None = None
     has_summary: bool = False
     has_transcript: bool = False
+    notes: str | None = None
     telegram_notify: bool = True
     created_at: datetime
     updated_at: datetime
@@ -132,6 +138,7 @@ class MeetingStatusResponse(BaseModel):
     start_time: datetime | None = None
     end_time: datetime | None = None
     segments_so_far: int = Field(default=0, description="Transcript segments collected so far")
+    notes: str | None = None
     vexa_bot_id: int | None = None
 
 

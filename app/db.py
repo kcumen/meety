@@ -61,6 +61,8 @@ class Meeting(Base):
     end_time = Column(DateTime(timezone=True), nullable=True)
     # AI summary (JSON column)
     summary = Column(Text, nullable=True)  # JSON string
+    # User notes
+    notes = Column(Text, nullable=True)
     # Notifications
     telegram_notify = Column(Integer, default=1)  # 1 = yes, 0 = no
     # Timestamps

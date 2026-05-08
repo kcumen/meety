@@ -45,6 +45,7 @@ from app.models import (
     MeetingSummaryResponse,
     TranscriptResponse,
     TranscriptSegmentResponse,
+    UpdateMeetingRequest,
 )
 from app.services.url_parser import ParseError, parse
 from app.services.vexa_client import CreateBotRequest, VexaClient
@@ -71,6 +72,7 @@ def _meeting_to_response(m) -> MeetingResponse:
         end_time=m.end_time,
         has_summary=m.summary is not None,
         has_transcript=m.transcript is not None,
+        notes=m.notes,
         telegram_notify=bool(m.telegram_notify),
         created_at=m.created_at,
         updated_at=m.updated_at,
@@ -437,13 +439,17 @@ async def delete_meeting(
         raise HTTPException(status_code=404, detail="Meeting not found")
 
     meeting_id = m.id
+    status = m.status
 
-    # Stop vexa bot (fire and forget)
+    # Deep delete in vexa if finalized, else just stop the bot
     try:
         vexa = _vexa()
-        await vexa.remove_bot(platform, native_meeting_id)
+        if status in ("completed", "failed"):
+            await vexa.delete_meeting(platform, native_meeting_id)
+        else:
+            await vexa.remove_bot(platform, native_meeting_id)
     except Exception:
-        pass  # proceed with deletion even if vexa fails
+        pass  # proceed with local deletion
 
     # Delete local record (cascades to transcript)
     db.delete(m)
@@ -476,6 +482,62 @@ async def stop_meeting_bot(
     except Exception as e:
         logger.error(f"Failed to stop bot: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to stop bot: {str(e)}")
+
+
+# ── PATCH /meetings/{platform}/{native_meeting_id} ──────────────────────────
+
+@router.patch("/{platform}/{native_meeting_id}", response_model=MeetingResponse)
+async def update_meeting(
+    platform: str,
+    native_meeting_id: str,
+    body: UpdateMeetingRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Update local meeting notes and sync them with Vexa.ai.
+    """
+    m = get_meeting_by_platform_id(db, platform, native_meeting_id)
+    if not m:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+
+    # Update local
+    if body.notes is not None:
+        m.notes = body.notes
+    db.commit()
+
+    # Sync with Vexa (optional/best-effort)
+    try:
+        vexa = _vexa()
+        # Vexa expects data: { notes: "..." }
+        await vexa.patch_meeting(platform, native_meeting_id, {"notes": body.notes})
+    except Exception as e:
+        logger.warning(f"Failed to sync notes with Vexa: {e}")
+
+    return _meeting_to_response(m)
+
+
+# ── POST /meetings/{platform}/{native_meeting_id}/share ──────────────────────
+
+@router.post("/{platform}/{native_meeting_id}/share")
+async def share_meeting_transcript(
+    platform: str,
+    native_meeting_id: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Generate a temporary public share link for the transcript via Vexa.
+    """
+    m = get_meeting_by_platform_id(db, platform, native_meeting_id)
+    if not m:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+
+    try:
+        vexa = _vexa()
+        share_data = await vexa.share_transcript(platform, native_meeting_id)
+        return share_data.model_dump()
+    except Exception as e:
+        logger.error(f"Failed to share transcript: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate share link: {str(e)}")
 
 
 # ── GET /meetings/events (SSE) ────────────────────────────────────────────────
