@@ -15,6 +15,8 @@ Configura las siguientes variables en la pestaña **Environment Variables**:
 - `OPENROUTER_API_KEY`: Tu API Key de OpenRouter.
 - `MEETY_API_KEY`: La clave que usarás para entrar a la interfaz (se guardará cifrada en tu navegador).
 
+> **⚠️ Importante sobre la base de datos:** No añadas la variable `DATABASE_URL` a menos que sepas lo que haces. Por defecto el sistema usará `sqlite:///./data/meety.db`. Si Coolify te crea esta variable por defecto apuntando a la raíz (`sqlite:///./meety.db`), **elimínala** o cámbiala a `sqlite:////app/data/meety.db` (nota las 4 barras).
+
 ### 3. Persistencia de Datos (Crítico) 💾
 Para no perder las reuniones y transcripciones al actualizar la imagen, debes configurar un volumen:
 1. Ve a **Storage** > **Add Directory Mount**.
