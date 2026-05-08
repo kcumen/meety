@@ -24,7 +24,8 @@ class Notifier:
                     message = await asyncio.wait_for(queue.get(), timeout=15.0)
                     yield f"data: {message}\n\n"
                 except asyncio.TimeoutError:
-                    yield ": keepalive\n\n"
+                    # Cloudflare/Nginx sometimes drop comment keepalives. Send a dummy event.
+                    yield 'data: {"event": "ping"}\n\n'
         finally:
             if queue in self.connections:
                 self.connections.remove(queue)

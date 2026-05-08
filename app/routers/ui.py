@@ -1001,9 +1001,21 @@ function setupSSE() {
   
   sseSource = new EventSource('/meetings/events?key=' + key);
   
+  sseSource.onopen = () => {
+    console.log('SSE connection established');
+    debouncedLoadMeetings();
+    if (typeof currentMeetingId !== 'undefined' && currentMeetingId && typeof currentMeetingPlatform !== 'undefined') {
+      // Refresh current open meeting in case we missed events while disconnected
+      openMeetingDetails(currentMeetingPlatform, currentMeetingId);
+    }
+  };
+  
   sseSource.onmessage = (event) => {
     try {
-      const { event: type, data } = JSON.parse(event.data);
+      const parsed = JSON.parse(event.data);
+      if (parsed.event === 'ping') return; // Ignore keep-alive
+      
+      const { event: type, data } = parsed;
       console.log('Real-time event:', type, data);
       
       let status = data.status;
@@ -1023,7 +1035,13 @@ function setupSSE() {
           String(eventId) === String(currentMeetingId)
       )) {
         console.log(`[SSE] Match found! Updating banner to: ${status}`);
-        if (status) updateBannerStatus(status);
+        if (status) {
+          updateBannerStatus(status);
+          // If the meeting just completed, refresh the details panel so the transcript appears!
+          if (status === 'completed' && typeof currentMeetingPlatform !== 'undefined') {
+            setTimeout(() => { openMeetingDetails(currentMeetingPlatform, currentMeetingId); }, 2000);
+          }
+        }
       } else {
         console.log(`[SSE] No match for current banner.`);
       }
@@ -1223,7 +1241,8 @@ async function openMeetingDetails(platform, nativeId) {
   const title = document.getElementById('panel-title');
   const badge = document.getElementById('panel-status-badge');
   
-  currentMeetingId = nativeId;
+  window.currentMeetingId = nativeId;
+  window.currentMeetingPlatform = platform;
   title.innerText = nativeId;
   panel.classList.add('open');
   content.innerHTML = '<div style="color:#666; text-align:center; padding-top:100px;">Cargando...</div>';
