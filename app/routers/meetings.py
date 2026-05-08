@@ -470,6 +470,19 @@ async def get_meeting_transcript(
     if not m:
         raise HTTPException(status_code=404, detail="Meeting not found")
 
+    if m.status in ["requested", "joining", "awaiting_admission", "active", "stopping"]:
+        # Don't hang on Vexa API for active meetings since transcript isn't ready
+        return TranscriptResponse(
+            meeting_id=m.id,
+            platform=platform,
+            native_meeting_id=native_meeting_id,
+            status=m.status,
+            start_time=None,
+            end_time=None,
+            segments=[],
+            segment_count=0,
+        )
+
     if m.transcript is None:
         # Lazy fetch from vexa
         vexa = _vexa()
@@ -624,6 +637,7 @@ async def share_meeting_transcript(
 ):
     """
     Generate a temporary public share link for the transcript via Vexa.
+    Falls back to a local export link if Vexa returns 404.
     """
     m = get_meeting_by_platform_id(db, platform, native_meeting_id)
     if not m:
@@ -635,12 +649,53 @@ async def share_meeting_transcript(
         return share_data.model_dump()
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 404:
-            raise HTTPException(status_code=404, detail="Vexa no encontró la transcripción para esta reunión. Asegúrate de que el bot haya participado y la sesión haya finalizado.")
+            # Fallback to local export
+            import urllib.parse
+            import os
+            app_url = os.getenv("APP_BASE_URL", "http://127.0.0.1:8080").rstrip("/")
+            local_url = f"{app_url}/meetings/{platform}/{urllib.parse.quote(native_meeting_id)}/export-text"
+            return {
+                "share_id": "local-fallback",
+                "url": local_url,
+                "expires_at": "Never",
+                "expires_in_seconds": 0
+            }
         logger.error(f"Vexa API error sharing transcript: {e}")
         raise HTTPException(status_code=502, detail="Error de comunicación con Vexa.ai")
     except Exception as e:
         logger.error(f"Failed to share transcript: {e}")
         raise HTTPException(status_code=500, detail=f"Error interno al generar el enlace: {str(e)}")
+
+
+# ── GET /meetings/{platform}/{native_meeting_id}/export-text ────────────────
+
+from fastapi.responses import PlainTextResponse
+
+@router.get("/{platform}/{native_meeting_id}/export-text", response_class=PlainTextResponse)
+async def export_meeting_text(
+    platform: str,
+    native_meeting_id: str,
+    db: Session = Depends(get_db),
+):
+    """Export the transcript directly as a plain text file from the local database."""
+    m = get_meeting_by_platform_id(db, platform, native_meeting_id)
+    if not m:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+        
+    lines = [f"Transcripción: {native_meeting_id} ({platform})", "="*50, ""]
+    if m.transcript and m.transcript.segments:
+        try:
+            segments = json.loads(m.transcript.segments)
+            for s in segments:
+                speaker = s.get("speaker") or "Desconocido"
+                text = s.get("text") or ""
+                lines.append(f"[{speaker}]: {text}")
+        except Exception:
+            lines.append("Error leyendo los segmentos.")
+    else:
+        lines.append("No hay transcripción almacenada localmente.")
+        
+    return "\n".join(lines)
 
 
 # ── GET /meetings/events (SSE) ────────────────────────────────────────────────
