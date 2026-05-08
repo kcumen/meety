@@ -202,6 +202,58 @@ _HTML = """
     }
     .adv-field select:focus { border-color: var(--accent); }
 
+    /* ── Tooltips ─────────────────────────────────────────────── */
+    .info-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #e5e7eb;
+      color: #6b7280;
+      font-size: 10px;
+      font-weight: bold;
+      cursor: help;
+      margin-left: 4px;
+      position: relative;
+      font-style: normal;
+    }
+    .tooltip {
+      position: absolute;
+      bottom: 150%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1f2937;
+      color: #ffffff;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: normal;
+      white-space: nowrap;
+      visibility: hidden;
+      opacity: 0;
+      transition: opacity 0.2s, transform 0.2s;
+      z-index: 10000;
+      pointer-events: none;
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+    }
+    .tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      margin-left: -5px;
+      border-width: 5px;
+      border-style: solid;
+      border-color: #1f2937 transparent transparent transparent;
+    }
+    .info-icon:hover .tooltip {
+      visibility: visible;
+      opacity: 1;
+      transform: translateX(-50%) translateY(-2px);
+    }
+
     /* ── Options row ──────────────────────────────────────────── */
     .options {
       margin-top: 12px;
@@ -601,7 +653,10 @@ _HTML = """
     <!-- Advanced Options -->
     <div id="advanced-options" class="advanced-options">
       <div class="adv-field">
-        <label>Idioma</label>
+        <label>
+          Idioma 
+          <i class="info-icon">i<span class="tooltip">Idioma base para la transcripción</span></i>
+        </label>
         <select id="opt-language">
           <option value="">Auto-detectar</option>
           <option value="es">Español</option>
@@ -612,14 +667,20 @@ _HTML = """
         </select>
       </div>
       <div class="adv-field">
-        <label>Tarea</label>
+        <label>
+          Tarea 
+          <i class="info-icon">i<span class="tooltip">Transcripción original o traducción</span></i>
+        </label>
         <select id="opt-task">
           <option value="transcribe">Transcripción</option>
           <option value="translate">Traducción</option>
         </select>
       </div>
       <div class="adv-field">
-        <label>Calidad (Tier)</label>
+        <label>
+          Calidad (Tier) 
+          <i class="info-icon">i<span class="tooltip">Tiempo Real (rápido) o Diferido (preciso)</span></i>
+        </label>
         <select id="opt-tier">
           <option value="realtime">Tiempo Real</option>
           <option value="deferred">Diferido (Máxima precisión)</option>
@@ -628,16 +689,24 @@ _HTML = """
       
       <div class="adv-field" style="grid-column: span 2; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; border-top: 1px solid var(--border); padding-top: 12px;">
         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text);">
-          <input type="checkbox" id="opt-transcribe" checked /> Transcribir
+          <input type="checkbox" id="opt-transcribe" checked /> 
+          Transcribir
+          <i class="info-icon">i<span class="tooltip">Habilitar captura de texto</span></i>
         </label>
         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text);">
-          <input type="checkbox" id="opt-record" /> Grabar reunión
+          <input type="checkbox" id="opt-record" /> 
+          Grabar reunión
+          <i class="info-icon">i<span class="tooltip">Guardar respaldo de audio de la sesión</span></i>
         </label>
         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text);">
-          <input type="checkbox" id="opt-telegram" checked /> Notificar Telegram
+          <input type="checkbox" id="opt-telegram" checked /> 
+          Notificar Telegram
+          <i class="info-icon">i<span class="tooltip">Recibir resumen automático en Telegram</span></i>
         </label>
         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text);">
-          <input type="checkbox" id="opt-voice-agent" /> Voice Agent (Beta)
+          <input type="checkbox" id="opt-voice-agent" /> 
+          Voice Agent (Beta)
+          <i class="info-icon">i<span class="tooltip">Permite al bot hablar e interactuar</span></i>
         </label>
       </div>
     </div>
