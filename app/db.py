@@ -245,12 +245,14 @@ def store_transcript(
     raw_json: str,
 ) -> Transcript:
     """Create or replace the transcript for a meeting."""
-    # Remove existing if any (shouldn't happen with unique constraint)
-    existing = (
-        session.query(Transcript).filter(Transcript.meeting_id == meeting_id).first()
-    )
+    import sqlalchemy.exc
+
+    existing = session.query(Transcript).filter(Transcript.meeting_id == meeting_id).first()
     if existing:
-        session.delete(existing)
+        existing.segments = json.dumps(segments)
+        existing.raw_json = raw_json
+        existing.segment_count = len(segments)
+        return existing
 
     transcript = Transcript(
         meeting_id=meeting_id,
@@ -258,7 +260,19 @@ def store_transcript(
         raw_json=raw_json,
         segment_count=len(segments),
     )
-    session.add(transcript)
+    
+    try:
+        with session.begin_nested():
+            session.add(transcript)
+    except sqlalchemy.exc.IntegrityError:
+        # Concurrent insertion occurred
+        existing = session.query(Transcript).filter(Transcript.meeting_id == meeting_id).first()
+        if existing:
+            existing.segments = json.dumps(segments)
+            existing.raw_json = raw_json
+            existing.segment_count = len(segments)
+            return existing
+        
     return transcript
 
 
