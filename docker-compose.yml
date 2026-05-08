@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  meety:
+    build: .
+    image: meety-app
+    container_name: meety
+    ports:
+      - "8080:8080"
+    volumes:
+      - meety_data:/app/data
+    environment:
+      - DATABASE_URL=sqlite:////app/data/meety.db
+      - APP_BASE_URL=${APP_BASE_URL}
+      - VEXA_API_KEY=${VEXA_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+    restart: always
+
+volumes:
+  meety_data:
