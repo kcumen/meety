@@ -31,7 +31,12 @@ async def set_webhook(url: str):
 
 if __name__ == "__main__":
     import sys
-    if len(sys.argv) < 2:
-        print("Usage: python set_webhook.py <tunnel_url>")
-    else:
-        asyncio.run(set_webhook(sys.argv[1]))
+    # Priority: 1. Argument, 2. APP_BASE_URL env var
+    target_url = sys.argv[1] if len(sys.argv) > 1 else os.getenv("APP_BASE_URL")
+    
+    if not target_url:
+        print("❌ Error: No URL provided.")
+        print("Usage: python set_webhook.py <url>  OR set APP_BASE_URL env var.")
+        sys.exit(1)
+        
+    asyncio.run(set_webhook(target_url.rstrip("/")))
