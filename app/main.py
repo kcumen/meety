@@ -17,6 +17,8 @@ from app.routers.ui import router as ui_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup: create DB tables. Teardown: nothing (SQLite)."""
+    import os
+    os.makedirs("./data", exist_ok=True)
     init_db()
     yield
 

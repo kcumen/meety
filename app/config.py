@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     # ── App ─────────────────────────────────────────────────────
     MEETY_API_KEY: str = ""  # Set this in production!
     APP_BASE_URL: str = "http://localhost:8080"
-    DATABASE_URL: str = "sqlite:///./meety.db"
+    DATABASE_URL: str = "sqlite:///./data/meety.db"
     LOG_LEVEL: str = "INFO"
 
 
