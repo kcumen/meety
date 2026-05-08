@@ -1375,7 +1375,7 @@ async function openMeetingDetails(platform, nativeId) {
           <div class="transcript-line">
             <div class="speaker-label">
               ${seg.speaker || 'Participante'} 
-              <span class="speaker-time">${formatSimpleTime(seg.start_time)}</span>
+              <span class="speaker-time">${formatSimpleTime(seg.start !== undefined ? seg.start : seg.start_time)}</span>
             </div>
             <div class="speaker-text">${escHtml(seg.text)}</div>
           </div>
