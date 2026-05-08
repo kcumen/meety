@@ -5,7 +5,7 @@ Wires routers, lifespan (DB init), CORS, and health check.
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
@@ -37,8 +37,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from app.dependencies import verify_api_key
+
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(health.router, tags=["health"])
-app.include_router(meetings.router, prefix="/meetings", tags=["meetings"])
+app.include_router(meetings.router, prefix="/meetings", tags=["meetings"], dependencies=[Depends(verify_api_key)])
 app.include_router(webhook.router, prefix="/webhook", tags=["webhook"])
 app.include_router(ui_router, tags=["ui"])

@@ -478,6 +478,30 @@ _HTML = """
     }
 
     #overlay.visible { display: block; }
+
+    /* ── Auth Overlay ────────────────────────────────────────── */
+    #auth-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(255,255,255,0.95);
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    #auth-overlay.visible { display: flex; }
+    .auth-card {
+      background: #fff;
+      padding: 32px;
+      border-radius: 12px;
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 360px;
+      text-align: center;
+    }
+    .auth-card h2 { margin-bottom: 20px; font-size: 1.2rem; }
+    .auth-card input { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; text-align: center; font-size: 1.1rem; letter-spacing: 0.2em; }
   </style>
 </head>
 <body>
@@ -533,6 +557,16 @@ _HTML = """
 
 <!-- ── Detail panel ────────────────────────────────────── -->
 <div id="overlay" onclick="closePanel()"></div>
+
+<!-- Auth Overlay -->
+<div id="auth-overlay">
+  <div class="auth-card">
+    <h2>Acceso Restringido</h2>
+    <p style="font-size: 0.9rem; color: var(--muted); margin-bottom: 20px;">Ingresá la llave de acceso para continuar.</p>
+    <input type="password" id="auth-input" placeholder="••••••••" />
+    <button onclick="saveApiKey()" style="width: 100%">Entrar</button>
+  </div>
+</div>
 <div id="detail-panel">
   <div class="panel-header">
     <h2>Detalle</h2>
@@ -542,6 +576,34 @@ _HTML = """
 </div>
 
 <script>
+// ── Authentication ─────────────────────────────────────────────
+
+function getApiKey() {
+  return localStorage.getItem('meety_api_key') || '';
+}
+
+function saveApiKey() {
+  const val = document.getElementById('auth-input').value;
+  if (!val) return;
+  localStorage.setItem('meety_api_key', val);
+  document.getElementById('auth-overlay').classList.remove('visible');
+  loadMeetings();
+}
+
+async function authFetch(url, options = {}) {
+  const headers = options.headers || {};
+  headers['X-Meety-API-Key'] = getApiKey();
+  
+  // Use the native window.fetch to avoid recursion
+  const res = await window.fetch(url, { ...options, headers });
+  
+  if (res.status === 401) {
+    document.getElementById('auth-overlay').classList.add('visible');
+  }
+  
+  return res;
+}
+
 // ── Utilities ──────────────────────────────────────────────────
 
 function md(text) {
@@ -568,7 +630,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 /* ── SSE ──────────────────────────────────────────────────── */
 function setupSSE() {
-  const source = new EventSource('/meetings/events');
+  const source = new EventSource('/meetings/events?key=' + getApiKey());
   
   source.onmessage = (event) => {
     try {
@@ -619,7 +681,7 @@ async function joinMeeting() {
   hideStatusBanner();
 
   try {
-    const res = await fetch('/meetings/join', {
+    const res = await authFetch('/meetings/join', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -681,7 +743,7 @@ async function stopMeeting(platform, nativeId) {
   if (!confirm('¿Seguro que querés terminar la sesión del bot?')) return;
   
   try {
-    const res = await fetch(`/meetings/${platform}/${nativeId}/stop`, { method: 'POST' });
+    const res = await authFetch(`/meetings/${platform}/${nativeId}/stop`, { method: 'POST' });
     if (res.ok) {
       console.log('Stop request sent');
       loadMeetings();
@@ -701,7 +763,7 @@ function hideStatusBanner() {
 /* ── Meetings list ────────────────────────────────────────── */
 async function loadMeetings() {
   try {
-    const res = await fetch('/meetings');
+    const res = await authFetch('/meetings');
     const data = await res.json();
     const list = document.getElementById('meetings-list');
 
@@ -756,12 +818,12 @@ function formatDate(iso) {
 
 /* ── Detail panel ─────────────────────────────────────────── */
 async function openMeeting(id) {
-  const res = await fetch(`/meetings/${encodeURIComponent(id)}`);
+  const res = await authFetch(`/meetings/${encodeURIComponent(id)}`);
   if (!res.ok) return;
   const m = await res.json();
 
   // Fetch summary if available
-  const sumRes = await fetch(`/meetings/${encodeURIComponent(id)}/summary`);
+  const sumRes = await authFetch(`/meetings/${encodeURIComponent(id)}/summary`);
   let summary = null;
   if (sumRes.ok) {
     const sumData = await sumRes.json();
