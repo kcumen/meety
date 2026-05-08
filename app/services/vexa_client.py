@@ -172,7 +172,7 @@ class VexaClient:
         self,
         api_key: str | None = None,
         base_url: str | None = None,
-        timeout: float = 30.0,
+        timeout: float = 90.0,
     ) -> None:
         self.api_key = api_key or settings.VEXA_API_KEY
         self.base_url = (base_url or settings.VEXA_API_BASE or "https://api.cloud.vexa.ai").rstrip(

@@ -20,10 +20,14 @@ class Notifier:
         logger.debug(f"New SSE client connected. Total: {len(self.connections)}")
         try:
             while True:
-                message = await queue.get()
-                yield f"data: {message}\n\n"
+                try:
+                    message = await asyncio.wait_for(queue.get(), timeout=15.0)
+                    yield f"data: {message}\n\n"
+                except asyncio.TimeoutError:
+                    yield ": keepalive\n\n"
         finally:
-            self.connections.remove(queue)
+            if queue in self.connections:
+                self.connections.remove(queue)
             logger.debug(f"SSE client disconnected. Total: {len(self.connections)}")
 
     async def broadcast(self, event_type: str, data: dict):
