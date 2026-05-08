@@ -49,8 +49,8 @@ class BotResponse(BaseModel):
     id: int
     user_id: int
     platform: str
-    native_meeting_id: str
-    constructed_meeting_url: str
+    native_meeting_id: str | None = None
+    constructed_meeting_url: str | None = None
     status: str
     bot_container_id: str | None = None
     start_time: str | None = None
@@ -120,8 +120,8 @@ class TranscriptResponse(BaseModel):
     """Response from GET /transcripts/{platform}/{native_meeting_id}."""
     id: int
     platform: str
-    native_meeting_id: str
-    constructed_meeting_url: str
+    native_meeting_id: str | None = None
+    constructed_meeting_url: str | None = None
     status: str
     start_time: str | None = None
     end_time: str | None = None
@@ -143,8 +143,8 @@ class MeetingRef(BaseModel):
     id: int
     user_id: int
     platform: str
-    native_meeting_id: str
-    constructed_meeting_url: str
+    native_meeting_id: str | None = None
+    constructed_meeting_url: str | None = None
     status: str
     bot_container_id: str | None = None
     start_time: str | None = None
