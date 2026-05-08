@@ -103,6 +103,7 @@ class MeetingResponse(BaseModel):
     telegram_notify: bool = True
     created_at: datetime
     updated_at: datetime
+    source: str = "local"
 
     model_config = ConfigDict(from_attributes=True)
 

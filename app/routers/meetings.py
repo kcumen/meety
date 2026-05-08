@@ -77,6 +77,7 @@ def _meeting_to_response(m) -> MeetingResponse:
         telegram_notify=bool(m.telegram_notify),
         created_at=m.created_at,
         updated_at=m.updated_at,
+        source="local",
     )
 
 
@@ -177,20 +178,68 @@ async def list_meetings(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    """List all meetings, newest first."""
+    """List all meetings, newest first. Merges local and vexa sessions."""
     from app.db import Meeting
 
-    total = db.query(Meeting).count()
-    rows = (
+    # Fetch local meetings
+    local_rows = (
         db.query(Meeting)
         .order_by(Meeting.created_at.desc())
         .offset(offset)
         .limit(limit)
         .all()
     )
+    total = db.query(Meeting).count()
+
+    local_map = {m.native_meeting_id: _meeting_to_response(m) for m in local_rows}
+
+    # Fetch vexa meetings
+    try:
+        vexa = _vexa()
+        vexa_resp = await vexa.list_meetings(limit=limit, offset=offset)
+        for vm in vexa_resp.meetings:
+            nid = vm.native_meeting_id
+            if not nid: continue
+            
+            if nid in local_map:
+                local_map[nid].source = "sync"
+            else:
+                # Create a pseudo MeetingResponse for Vexa-only
+                start_dt = datetime.fromisoformat(vm.start_time.replace("Z", "+00:00")) if vm.start_time else None
+                end_dt = datetime.fromisoformat(vm.end_time.replace("Z", "+00:00")) if vm.end_time else None
+                created_dt = datetime.fromisoformat(vm.created_at.replace("Z", "+00:00")) if vm.created_at else datetime.now(timezone.utc)
+                updated_dt = datetime.fromisoformat(vm.updated_at.replace("Z", "+00:00")) if vm.updated_at else datetime.now(timezone.utc)
+                
+                v_res = MeetingResponse(
+                    id=0,
+                    platform=vm.platform,
+                    native_meeting_id=nid,
+                    vexa_meeting_id=vm.id,
+                    meeting_url=vm.constructed_meeting_url or "",
+                    status=vm.status,
+                    language=None,
+                    bot_name=None,
+                    start_time=start_dt,
+                    end_time=end_dt,
+                    has_summary=False,
+                    has_transcript=True,
+                    notes=vm.data.get("notes"),
+                    telegram_notify=False,
+                    created_at=created_dt,
+                    updated_at=updated_dt,
+                    source="vexa"
+                )
+                local_map[nid] = v_res
+    except Exception as e:
+        logger.error(f"Failed to fetch vexa meetings: {e}")
+
+    # Merge and sort
+    all_meetings = list(local_map.values())
+    all_meetings.sort(key=lambda x: x.created_at, reverse=True)
+
     return MeetingListResponse(
-        meetings=[_meeting_to_response(m) for m in rows],
-        total=total,
+        meetings=all_meetings[:limit],
+        total=max(total, len(all_meetings)),
         limit=limit,
         offset=offset,
     )
@@ -219,10 +268,14 @@ async def get_meeting(
     native_meeting_id: str,
     db: Session = Depends(get_db),
 ):
-    """Get a single meeting by its platform identity."""
+    """Get a single meeting by its platform identity. Syncs from Vexa if missing."""
     m = get_meeting_by_platform_id(db, platform, native_meeting_id)
     if not m:
-        raise HTTPException(status_code=404, detail="Meeting not found")
+        from app.db import create_meeting
+        # Auto-create local stub for vexa-only meetings when accessed
+        m = create_meeting(db, platform, native_meeting_id, meeting_url="")
+        m.status = "completed" # Assume completed if it was in the Vexa history
+        db.commit()
     return _meeting_to_response(m)
 
 

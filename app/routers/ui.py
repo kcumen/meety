@@ -1164,7 +1164,12 @@ async function loadMeetings() {
           ${platformLabel(m.platform)}
         </div>
         <div class="info">
-          <div class="url">${escHtml(m.native_meeting_id)}</div>
+          <div class="url" style="display:flex; align-items:center; gap:6px;">
+            ${escHtml(m.native_meeting_id)}
+            <span style="font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; background: ${m.source==='vexa'?'#f3e8ff':m.source==='local'?'#e0f2fe':'#dcfce7'}; color: ${m.source==='vexa'?'#7c3aed':m.source==='local'?'#0369a1':'#166534'};">
+              ${m.source === 'vexa' ? '☁️ Vexa Only' : m.source === 'local' ? '💻 Local' : '🔄 Sync'}
+            </span>
+          </div>
           <div class="meta">${formatDate(m.created_at)} · ${m.platform}</div>
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
