@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     # ── Vexa.ai ────────────────────────────────────────────────
     VEXA_API_KEY: str = ""
     VEXA_API_BASE: str = "https://api.cloud.vexa.ai"
+    VEXA_WEBHOOK_SECRET: str = ""  # Optional: Vexa will send this as Bearer token
 
     # ── OpenRouter ─────────────────────────────────────────────
     OPENROUTER_API_KEY: str = ""

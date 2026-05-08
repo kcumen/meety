@@ -52,8 +52,17 @@ async def vexa_webhook(request: Request, background_tasks: BackgroundTasks):
       - On 'recording.completed': store recording reference
       - All events: broadcast to connected Web UI clients
     """
+    from app.config import settings
+    # Security: Validate webhook secret if configured
+    if settings.VEXA_WEBHOOK_SECRET:
+        auth_header = request.headers.get("Authorization", "")
+        expected = f"Bearer {settings.VEXA_WEBHOOK_SECRET}"
+        if auth_header != expected:
+            logger.warning(f"Unauthorized webhook attempt from {request.client.host}")
+            return WebhookResponse(ok=False, message="Unauthorized")
+
     body = await request.json()
-    event_type = body.get("event") or body.get("event_type") or ""
+    event_type = body.get("event_type") or body.get("event") or ""
     logger.info(f"Webhook received: {event_type} | Body: {json.dumps(body)}")
 
     meeting_events = ["meeting.status_change", "meeting.started", "meeting.completed", "bot.failed"]
