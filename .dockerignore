@@ -8,6 +8,6 @@ venv/
 .gitignore
 *.db
 *.db-journal
-scratch/
+# scratch/
 artifacts/
 .DS_Store
