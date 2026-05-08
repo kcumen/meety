@@ -941,7 +941,8 @@ async function authFetch(url, options = {}) {
   const headers = options.headers || {};
   headers['X-Meety-API-Key'] = getApiKey();
   
-  console.log(`[Auth] Fetching ${url}...`);
+  const maskedUrl = url.includes('key=') ? url.replace(/key=[^&]+/, 'key=***') : url;
+  console.log(`[Auth] Fetching ${maskedUrl}...`);
   const res = await window.fetch(url, { ...options, headers });
   
   if (res.status === 401) {
@@ -1012,12 +1013,20 @@ function setupSSE() {
 
       debouncedLoadMeetings();
       
+      const eventNativeId = data.native_meeting_id || data.nativeId;
+      const eventId = data.meeting_id || data.id;
+
+      console.log(`[SSE] Checking match: Current=${currentMeetingId} vs Event(Native=${eventNativeId}, ID=${eventId})`);
+
       if (currentMeetingId && (
-          data.native_meeting_id === currentMeetingId || 
-          data.meeting_id === currentMeetingId || 
-          data.id === parseInt(currentMeetingId)
+          eventNativeId === currentMeetingId || 
+          String(eventId) === String(currentMeetingId)
       )) {
+        console.log(`[SSE] Match found! Updating banner to: ${status}`);
         if (status) updateBannerStatus(status);
+      } else {
+        console.log(`[SSE] No match for current banner.`);
+      }
       }
     } catch (e) {
       console.error('SSE error:', e);
