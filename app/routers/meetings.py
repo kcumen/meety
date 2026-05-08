@@ -397,10 +397,10 @@ async def _self_heal_summary(meeting_id: int):
             if has_content:
                 segs = [TranscriptSegmentResponse.model_validate(s) for s in segments_dicts]
                 summary_obj = await generate_summary(segs, meeting_id=m.id, language=m.language)
-                update_meeting_summary(db, m.id, summary_obj.model_dump())
+                update_meeting_summary(db, m.id, summary_obj.model_dump(mode="json"))
                 db.commit()
             else:
-                update_meeting_summary(db, m.id, "Sesión demasiado corta o sin transcripción disponible para resumir.")
+                m.summary = "Sesión demasiado corta o sin transcripción disponible para resumir."
                 db.commit()
         except Exception as e:
             logger.error(f"Background self-healing failed for meeting {meeting_id}: {e}")
