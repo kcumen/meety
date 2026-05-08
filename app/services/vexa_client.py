@@ -88,10 +88,12 @@ class DeleteBotResponse(BaseModel):
     message: str
 
 
+from pydantic import BaseModel, Field, ConfigDict
+
 class TranscriptSegment(BaseModel):
     """A single utterance in a transcript."""
-    start_time: float
-    end_time: float
+    start_time: float = Field(alias="start", default=0.0)
+    end_time: float = Field(alias="end", default=0.0)
     text: str
     language: str | None = None
     created_at: str | None = None
@@ -99,6 +101,8 @@ class TranscriptSegment(BaseModel):
     completed: bool = True
     absolute_start_time: str | None = None
     absolute_end_time: str | None = None
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class RecordingRef(BaseModel):
