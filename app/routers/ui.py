@@ -631,6 +631,31 @@ _HTML = """
     }
     .btn-danger-big:hover { background: #4a2525; }
 
+    /* ── Responsive ─────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .input-row { flex-direction: column; }
+      .detail-body { 
+        display: flex; 
+        flex-direction: column; 
+        overflow-y: auto; 
+      }
+      .detail-content { 
+        border-right: none; 
+        border-bottom: 1px solid #333; 
+        overflow-y: visible; 
+        padding: 24px 16px; 
+      }
+      .detail-sidebar { 
+        overflow-y: visible; 
+        padding: 24px 16px; 
+      }
+      main { padding: 20px 16px; }
+      .detail-header { padding: 12px 16px; }
+      .summary-section { padding: 16px; margin-bottom: 24px; }
+      .options { flex-direction: column; gap: 8px; }
+      .advanced-options { grid-template-columns: 1fr; }
+    }
+
     /* ── Auth Overlay ────────────────────────────────────────── */
     #auth-overlay {
       position: fixed;
