@@ -593,13 +593,6 @@ _HTML = """
 
     <div id="form-error" class="form-error"></div>
 
-    <!-- Options -->
-    <div class="options">
-      <label><input type="checkbox" id="opt-transcribe" checked /> Transcribir</label>
-      <label><input type="checkbox" id="opt-record" /> Grabar</label>
-      <label><input type="checkbox" id="opt-telegram" checked /> Notificar Telegram</label>
-    </div>
-
     <!-- Advanced Toggle -->
     <div class="advanced-toggle" onclick="toggleAdvanced()">
       <span id="adv-icon">▶</span> Opciones Avanzadas
@@ -621,20 +614,30 @@ _HTML = """
       <div class="adv-field">
         <label>Tarea</label>
         <select id="opt-task">
-          <option value="transcribe">Transcribir</option>
-          <option value="translate">Traducir</option>
+          <option value="transcribe">Transcripción</option>
+          <option value="translate">Traducción</option>
         </select>
       </div>
       <div class="adv-field">
         <label>Calidad (Tier)</label>
         <select id="opt-tier">
           <option value="realtime">Tiempo Real</option>
-          <option value="deferred">Diferido (Mayor precisión)</option>
+          <option value="deferred">Diferido (Máxima precisión)</option>
         </select>
       </div>
-      <div class="adv-field">
-        <label style="display: flex; align-items: center; gap: 8px; height: 100%; cursor: pointer;">
-          <input type="checkbox" id="opt-voice-agent" /> Voice Agent
+      
+      <div class="adv-field" style="grid-column: span 2; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; border-top: 1px solid var(--border); padding-top: 12px;">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text);">
+          <input type="checkbox" id="opt-transcribe" checked /> Transcribir
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text);">
+          <input type="checkbox" id="opt-record" /> Grabar reunión
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text);">
+          <input type="checkbox" id="opt-telegram" checked /> Notificar Telegram
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text);">
+          <input type="checkbox" id="opt-voice-agent" /> Voice Agent (Beta)
         </label>
       </div>
     </div>
