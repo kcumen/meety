@@ -158,6 +158,8 @@ async def _handle_meeting_event(event):
 
     # 2. If completed, fetch transcript and generate summary
     if new_status == "completed":
+        import asyncio
+        await asyncio.sleep(10)  # Wait for Vexa to finalize transcript processing
         segments_dicts: list[dict] = []
         try:
             tx = await vexa.get_transcript(event.platform, event.native_meeting_id)
