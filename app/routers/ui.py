@@ -1267,11 +1267,13 @@ async function openMeetingDetails(platform, nativeId) {
     
     let html = '';
     
+    let shouldPollSummary = false;
     // 1. AI Summary Section
     const s = summaryData.summary || summaryData.summary_text;
     if (s) {
       const isStructured = summaryData.summary !== null;
       const isProcessing = typeof s === 'string' && s.includes('⏳');
+      if (isProcessing) shouldPollSummary = true;
       
       html += `
         <div class="summary-section">
@@ -1283,13 +1285,6 @@ async function openMeetingDetails(platform, nativeId) {
                <div class="spinner" style="margin:0 auto 10px auto; width:20px; height:20px; border-width:2px;"></div>
                <p style="font-size:0.8rem; color:#888;">Estamos procesando la información. Esta vista se actualizará sola...</p>
             </div>
-            <script>
-              setTimeout(() => { 
-                if (typeof currentMeetingId !== 'undefined' && currentMeetingId === '${nativeId}') {
-                  openMeetingDetails('${platform}', '${nativeId}');
-                }
-              }, 5000);
-            <\/script>
           ` : ''}
           
           ${isStructured && s.key_points && s.key_points.length ? `
@@ -1397,6 +1392,14 @@ async function openMeetingDetails(platform, nativeId) {
       closePanel();
       loadMeetings();
     };
+
+    if (shouldPollSummary) {
+      setTimeout(() => {
+        if (currentMeetingId === nativeId) {
+          openMeetingDetails(platform, nativeId);
+        }
+      }, 5000);
+    }
 
   } catch (err) {
     content.innerHTML = `<div style="color:#f87171; text-align:center; padding:100px;">Error al cargar: ${err.message}</div>`;
