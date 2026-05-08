@@ -59,6 +59,14 @@ class JoinMeetingRequest(BaseModel):
         default="realtime",
         description="realtime | deferred (default: realtime)",
     )
+    task: str | None = Field(
+        default="transcribe",
+        description="transcribe | translate (default: transcribe)",
+    )
+    voice_agent_enabled: bool = Field(
+        default=False,
+        description="Enable interactive voice agent capabilities.",
+    )
     notify_telegram: bool = Field(
         default=True,
         description="Send a Telegram message when the summary is ready.",

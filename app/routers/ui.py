@@ -167,6 +167,41 @@ _HTML = """
     }
     .bot-name-row input:focus { border-color: var(--accent); }
 
+    .advanced-toggle {
+      margin-top: 14px;
+      font-size: 0.8rem;
+      color: var(--accent);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 600;
+      user-select: none;
+    }
+    .advanced-options {
+      margin-top: 12px;
+      padding: 16px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      display: none;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .advanced-options.visible { display: grid; }
+    .adv-field { display: flex; flex-direction: column; gap: 4px; }
+    .adv-field label { font-size: 0.75rem; font-weight: 600; color: var(--muted); }
+    .adv-field select {
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.82rem;
+      background: #fff;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .adv-field select:focus { border-color: var(--accent); }
+
     /* ── Options row ──────────────────────────────────────────── */
     .options {
       margin-top: 12px;
@@ -565,6 +600,45 @@ _HTML = """
       <label><input type="checkbox" id="opt-telegram" checked /> Notificar Telegram</label>
     </div>
 
+    <!-- Advanced Toggle -->
+    <div class="advanced-toggle" onclick="toggleAdvanced()">
+      <span id="adv-icon">▶</span> Opciones Avanzadas
+    </div>
+
+    <!-- Advanced Options -->
+    <div id="advanced-options" class="advanced-options">
+      <div class="adv-field">
+        <label>Idioma</label>
+        <select id="opt-language">
+          <option value="">Auto-detectar</option>
+          <option value="es">Español</option>
+          <option value="en">Inglés</option>
+          <option value="pt">Portugués</option>
+          <option value="fr">Francés</option>
+          <option value="de">Alemán</option>
+        </select>
+      </div>
+      <div class="adv-field">
+        <label>Tarea</label>
+        <select id="opt-task">
+          <option value="transcribe">Transcribir</option>
+          <option value="translate">Traducir</option>
+        </select>
+      </div>
+      <div class="adv-field">
+        <label>Calidad (Tier)</label>
+        <select id="opt-tier">
+          <option value="realtime">Tiempo Real</option>
+          <option value="deferred">Diferido (Mayor precisión)</option>
+        </select>
+      </div>
+      <div class="adv-field">
+        <label style="display: flex; align-items: center; gap: 8px; height: 100%; cursor: pointer;">
+          <input type="checkbox" id="opt-voice-agent" /> Voice Agent
+        </label>
+      </div>
+    </div>
+
     <!-- Status banner -->
     <div id="status-banner" class="status-banner">
       <div class="spinner" id="status-spinner"></div>
@@ -736,6 +810,13 @@ function setupSSE() {
 }
 
 /* ── Join ─────────────────────────────────────────────────── */
+function toggleAdvanced() {
+  const panel = document.getElementById('advanced-options');
+  const icon = document.getElementById('adv-icon');
+  const isVisible = panel.classList.toggle('visible');
+  icon.textContent = isVisible ? '▼' : '▶';
+}
+
 async function joinMeeting() {
   const input = document.getElementById('url-input');
   const btn = document.getElementById('join-btn');
@@ -755,6 +836,10 @@ async function joinMeeting() {
       body: JSON.stringify({
         url,
         bot_name: document.getElementById('bot-name-input').value.trim() || 'KcuBot | kcumen.co',
+        language: document.getElementById('opt-language').value || null,
+        task: document.getElementById('opt-task').value,
+        transcription_tier: document.getElementById('opt-tier').value,
+        voice_agent_enabled: document.getElementById('opt-voice-agent').checked,
         transcribe_enabled: document.getElementById('opt-transcribe').checked,
         recording_enabled:   document.getElementById('opt-record').checked,
         notify_telegram:     document.getElementById('opt-telegram').checked,

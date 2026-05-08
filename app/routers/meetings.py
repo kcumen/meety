@@ -137,6 +137,8 @@ async def _dispatch_bot(meeting_id: int, parsed, body: JoinMeetingRequest):
         passcode=parsed.passcode,
         language=body.language,
         bot_name=body.bot_name,
+        task=body.task,
+        voice_agent_enabled=body.voice_agent_enabled,
         recording_enabled=body.recording_enabled,
         transcribe_enabled=body.transcribe_enabled,
         transcription_tier=body.transcription_tier,
