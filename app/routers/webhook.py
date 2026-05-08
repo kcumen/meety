@@ -189,27 +189,38 @@ async def _handle_meeting_event(event):
                 )
                 db2.add(stored)
                 db2.commit()
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                logger.info(f"Transcript not ready yet on Vexa for {event.native_meeting_id} (404) at webhook time.")
+            else:
+                logger.error(f"Transcript fetch HTTP error: {e}")
         except Exception as e:
             logger.error(f"Transcript fetch failed: {e}")
 
         # 3. Generate summary via OpenRouter
-        if meeting_id is not None:
+        if meeting_id is not None and segments_dicts:
             try:
-                segs = [
-                    TranscriptSegmentResponse(**s) for s in segments_dicts
-                ]
-                summary = await generate_summary(
-                    segs,
-                    meeting_id=meeting_id,
-                    language=meeting_language,
-                )
+                # Check if there is actual meaningful content
+                has_content = any(len((s.get("text") or "").strip()) > 5 for s in segments_dicts)
+                
+                if has_content:
+                    segs = [
+                        TranscriptSegmentResponse(**s) for s in segments_dicts
+                    ]
+                    summary = await generate_summary(
+                        segs,
+                        meeting_id=meeting_id,
+                        language=meeting_language,
+                    )
 
-                # 4. Store summary in DB
-                with _db_ctx() as db3:
-                    from app.db import Meeting, update_meeting_summary
-                    # Use mode="json" to ensure datetimes are serialized to strings
-                    update_meeting_summary(db3, meeting_id, summary.model_dump(mode="json"))
-                    logger.info(f"Summary generated for meeting {meeting_id}")
+                    # 4. Store summary in DB
+                    with _db_ctx() as db3:
+                        from app.db import Meeting, update_meeting_summary
+                        # Use mode="json" to ensure datetimes are serialized to strings
+                        update_meeting_summary(db3, meeting_id, summary.model_dump(mode="json"))
+                        logger.info(f"Summary generated for meeting {meeting_id}")
+                else:
+                    logger.info(f"Meeting {meeting_id} has no meaningful content to summarize.")
             except Exception as e:
                 logger.error(f"Summarization failed for meeting {meeting_id}: {e}")
 
