@@ -1267,6 +1267,27 @@ async function openMeetingDetails(platform, nativeId) {
     
     let html = '';
     
+    document.getElementById('btn-export-transcript').style.display = 'block';
+
+    if (['requested', 'joining', 'awaiting_admission', 'active', 'stopping'].includes(data.status)) {
+      html += `
+        <div style="text-align:center; padding: 80px 20px; background: rgba(0,0,0,0.2); border-radius: 12px; border: 1px solid #333;">
+          <div class="spinner" style="margin: 0 auto 24px auto; border-color: var(--accent) transparent var(--accent) transparent; width: 40px; height: 40px; border-width: 3px;"></div>
+          <h2 style="margin-bottom: 12px; font-size: 1.4rem; font-weight: 500;">Sesión en Progreso</h2>
+          <p style="color:#aaa; margin-bottom: 30px; font-size: 1.05rem; line-height: 1.5; max-width: 400px; margin-left: auto; margin-right: auto;">
+            El bot está actualmente en la reunión capturando el audio en tiempo real. 
+            El resumen y la transcripción completa estarán disponibles una vez finalizada.
+          </p>
+          <button class="btn" style="background:#ef4444; color:white; font-weight:bold; padding: 12px 28px; border-radius: 8px; font-size: 1.05rem;" onclick="stopMeeting('${platform}', '${nativeId}'); closePanel();">
+             Detener Bot y Finalizar
+          </button>
+        </div>
+      `;
+      document.getElementById('btn-export-transcript').style.display = 'none';
+      content.innerHTML = html;
+      return;
+    }
+
     let shouldPollSummary = false;
     // 1. AI Summary Section
     const s = summaryData.summary || summaryData.summary_text;
