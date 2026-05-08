@@ -177,8 +177,15 @@ def get_db():
 
 
 def init_db() -> None:
-    """Create all tables. Safe to call multiple times."""
-    Base.metadata.create_all(bind=get_engine())
+    """Create all tables. Handles concurrency for multiple workers."""
+    import sqlalchemy.exc
+    try:
+        Base.metadata.create_all(bind=get_engine())
+    except sqlalchemy.exc.OperationalError as e:
+        if "already exists" in str(e):
+            pass  # Someone else created it first, that's fine
+        else:
+            raise e
 
 
 # ─────────────────────────────────────────────────────────────
