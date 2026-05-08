@@ -577,19 +577,46 @@ _HTML = """
 </div>
 
 <script>
-// ── Authentication ─────────────────────────────────────────────
+// ── Authentication (Scrambled Storage) ─────────────────────────
+const _S = 'meety-v1-salt'; // Internal salt for scrambling
+
+function _scramble(t) {
+  const x = t.split('').map((c, i) => String.fromCharCode(c.charCodeAt(0) ^ _S.charCodeAt(i % _S.length))).join('');
+  return 'mty:' + btoa(x);
+}
+
+function _unscramble(t) {
+  if (!t.startsWith('mty:')) return t; // Already plain
+  try {
+    const b = t.substring(4);
+    return atob(b).split('').map((c, i) => String.fromCharCode(c.charCodeAt(0) ^ _S.charCodeAt(i % _S.length))).join('');
+  } catch(_) { return ''; }
+}
 
 function getApiKey() {
-  return localStorage.getItem('meety_api_key') || '';
+  let tk = localStorage.getItem('_m_tk') || localStorage.getItem('meety_api_key') || '';
+  if (!tk) return '';
+  
+  if (!tk.startsWith('mty:')) {
+    // Migration: it's plain text, so scramble it
+    const plain = tk;
+    const scrambled = _scramble(plain);
+    localStorage.setItem('_m_tk', scrambled);
+    localStorage.removeItem('meety_api_key');
+    return plain;
+  }
+  
+  return _unscramble(tk);
 }
 
 function saveApiKey() {
   const val = document.getElementById('auth-input').value;
   if (!val) return;
-  localStorage.setItem('meety_api_key', val);
+  localStorage.setItem('_m_tk', _scramble(val));
+  localStorage.removeItem('meety_api_key'); // Clean up old key
   document.getElementById('auth-overlay').classList.remove('visible');
   loadMeetings();
-  setupSSE(); // Restart SSE with the new key
+  setupSSE();
 }
 
 async function authFetch(url, options = {}) {
