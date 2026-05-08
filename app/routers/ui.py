@@ -1027,7 +1027,6 @@ function setupSSE() {
       } else {
         console.log(`[SSE] No match for current banner.`);
       }
-      }
     } catch (e) {
       console.error('SSE error:', e);
     }
